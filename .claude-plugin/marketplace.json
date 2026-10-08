@@ -1,0 +1,15 @@
+{
+  "name": "batchenba",
+  "description": "Design tools for working with Claude, by Bat Chen Ben Arza.",
+  "owner": {
+    "name": "Bat Chen Ben Arza",
+    "url": "https://batchenba.com"
+  },
+  "plugins": [
+    {
+      "name": "decision-review",
+      "source": "./",
+      "description": "Turns design review findings into a one-page decision board you approve, reject or discuss, then copy back to Claude as a prompt."
+    }
+  ]
+}

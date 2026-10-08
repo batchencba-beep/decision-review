@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Decisions · Dashboard review</title>
+<style>
+:root{--bg:#F2F2F1;--paper:#fff;--ink:#0F0F2D;--ink-2:#4B4B5E;--line:rgba(15,15,45,.14);--accent:#3C3CF7;--ok:#1F7A4D;--no:#B3261E;--talk:#8A6D00;--r:6px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:16px;line-height:1.55;padding:40px 16px 140px}
+.wrap{max-width:1120px;margin:0 auto}
+h1{font-family:Georgia,"Times New Roman",serif;font-size:30px;line-height:1.2;font-weight:400;letter-spacing:-.01em;margin-bottom:24px;text-wrap:balance}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:14px;border-inline-start:4px solid transparent;transition:border-color .2s}
+.card[data-state=approve]{border-inline-start-color:var(--ok)}
+.card[data-state=reject]{border-inline-start-color:var(--no)}
+.card[data-state=discuss]{border-inline-start-color:var(--talk)}
+.card h3{font-size:18px;font-weight:600;line-height:1.3;text-wrap:balance}
+.crit{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:4px;background:#FBE9E7;color:var(--no);vertical-align:3px;margin-inline-start:10px}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.cmp.wide{grid-template-columns:1fr 2fr}
+@media(max-width:720px){.cmp,.cmp.wide{grid-template-columns:1fr}}
+.side{border:1px solid var(--line);border-radius:var(--r);padding:14px;background:var(--bg);min-width:0}
+.side.prop{background:#fff;border-color:rgba(60,60,247,.35)}
+.lbl{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);margin-bottom:8px}
+.prop .lbl{color:var(--accent)}
+.side p{font-size:14px;color:var(--ink-2);white-space:pre-wrap;text-wrap:pretty;text-align:start}
+.side p:empty{display:none}
+.prev{background:#fff;border-radius:4px;padding:10px;margin-bottom:10px;overflow:hidden}
+.prop .prev{background:var(--bg)}
+.prev img{display:block;max-width:100%;height:auto;border-radius:3px}
+.prev figure+figure{margin-top:12px}
+.prev figcaption{font-size:13px;font-weight:600;margin-bottom:6px}
+.missing{font-size:13px;color:var(--no);background:#FBE9E7;border-radius:3px;padding:10px;word-break:break-all}
+.opts{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:10px}
+.opt{cursor:pointer;border-radius:4px;padding:6px;outline:1px solid transparent;transition:outline-color .15s}
+.opt:hover{outline-color:var(--line)}
+.opt.sel{outline:2px solid var(--accent);outline-offset:2px}
+.opt:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.opt-l{font-size:13px;font-weight:600;margin-bottom:6px}
+.opt-l span{font-weight:400;color:var(--ink-2)}
+.opt figure+figure{margin-top:8px}
+@media(max-width:720px){.opts{grid-template-columns:1fr}}
+footer{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:16px}
+.btns{display:flex;gap:6px}
+.b{font:inherit;font-size:14px;padding:8px 14px;min-height:40px;border:1px solid var(--line);border-radius:999px;background:var(--paper);cursor:pointer;color:var(--ink)}
+.b:hover{border-color:var(--ink)}
+.b:focus-visible,.note:focus-visible,.copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.b[data-v=approve].on{background:var(--ok);border-color:var(--ok);color:#fff}
+.b[data-v=reject].on{background:var(--no);border-color:var(--no);color:#fff}
+.b[data-v=discuss].on{background:var(--talk);border-color:var(--talk);color:#fff}
+.note{flex:1;min-width:200px;font:inherit;font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--paper)}
+.bar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);padding:14px 16px}
+.bar-in{max-width:1120px;margin:0 auto;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.count{font-size:14px;color:var(--ink-2)}
+.count b{color:var(--ink)}
+.copy{font:inherit;font-size:15px;font-weight:600;padding:12px 20px;border:0;border-radius:999px;background:var(--ink);color:#fff;cursor:pointer}
+.copy:hover{background:var(--accent)}
+.copy.done{background:var(--ok)}
+@media(max-width:720px){.bar{padding:8px 12px}.bar-in{gap:8px;flex-wrap:nowrap}.count{font-size:12px}.count .split{display:none}.copy{font-size:13px;padding:10px 14px;white-space:nowrap}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 dir="ltr">Decisions · Dashboard review</h1>
+  
+<article class="card" data-id="card-treatment">
+  <h3 dir="ltr"><span class="t">Cards on grey: shadow, frame, or nothing?</span></h3>
+  <div class="cmp wide">
+    <div class="side cur"><div class="lbl">Today</div><div class="prev"><figure><img src="shots/cards-today.png" alt="Cards on grey: shadow, frame, or nothing?: Today" style="width:100.0%;max-width:550px"></figure></div><p dir="ltr">On white, the white cards almost disappear into the background.</p></div>
+    <div class="side prop"><div class="lbl">Proposed</div><div class="prev opts" role="radiogroup" aria-label="Cards on grey: shadow, frame, or nothing?" style="--n:3"><div class="opt" role="radio" tabindex="0" aria-checked="false" data-i="0" data-label="A · No treatment" data-rec="1"><div class="opt-l"><bdi>A · No treatment</bdi> <span>(recommended)</span></div><figure><img src="shots/cards-A.png" alt="Cards on grey: shadow, frame, or nothing?: A · No treatment" style="width:100.0%;max-width:550px"></figure></div><div class="opt" role="radio" tabindex="0" aria-checked="false" data-i="1" data-label="B · Soft shadow" data-rec="0"><div class="opt-l"><bdi>B · Soft shadow</bdi></div><figure><img src="shots/cards-B.png" alt="Cards on grey: shadow, frame, or nothing?: B · Soft shadow" style="width:100.0%;max-width:550px"></figure></div><div class="opt" role="radio" tabindex="0" aria-checked="false" data-i="2" data-label="C · Hairline" data-rec="0"><div class="opt-l"><bdi>C · Hairline</bdi></div><figure><img src="shots/cards-C.png" alt="Cards on grey: shadow, frame, or nothing?: C · Hairline" style="width:100.0%;max-width:550px"></figure></div></div><p dir="ltr">A, no treatment. On grey, the white cards already show where they end. B and C are for comparison only.</p></div>
+  </div>
+  <footer>
+    <div class="btns" role="group" aria-label="Cards on grey: shadow, frame, or nothing?">
+      <button class="b" data-v="approve">Approve</button>
+      <button class="b" data-v="reject">Reject</button>
+      <button class="b" data-v="discuss">Discuss</button>
+    </div>
+    <input class="note" type="text" dir="auto" placeholder="Note (optional)" aria-label="Note (optional)">
+  </footer>
+</article>
+<article class="card" data-id="fan-title">
+  <h3 dir="ltr"><span class="t">A card title is hidden in the fan</span><span class="crit">Critical</span></h3>
+  <div class="cmp">
+    <div class="side cur"><div class="lbl">Today</div><p dir="ltr">The front card covers the left 40% of the card behind it, exactly where its title starts. Without hover you only see &quot;…ings&quot;.</p></div>
+    <div class="side prop"><div class="lbl">Proposed</div><p dir="ltr">Open the fan to ±72% and shorten the text area (right: 90px), so all three titles show at rest.</p></div>
+  </div>
+  <footer>
+    <div class="btns" role="group" aria-label="A card title is hidden in the fan">
+      <button class="b" data-v="approve">Approve</button>
+      <button class="b" data-v="reject">Reject</button>
+      <button class="b" data-v="discuss">Discuss</button>
+    </div>
+    <input class="note" type="text" dir="auto" placeholder="Note (optional)" aria-label="Note (optional)">
+  </footer>
+</article>
+<article class="card" data-id="accent-color">
+  <h3 dir="ltr"><span class="t">Accent word in blue on saturated yellow</span></h3>
+  <div class="cmp">
+    <div class="side cur"><div class="lbl">Today</div><div class="prev"><div style="background:#E6E000;padding:14px;font-family:Georgia,serif;color:#0F0F2D"><div style="font-size:14px">Draft</div><div>↓</div><div style="font-size:17px;color:#3C3CF7">Shipped</div></div></div><p dir="ltr">Yellow and blue both used for emphasis, fighting over one word. 4.72:1 leaves no margin for a thin serif.</p></div>
+    <div class="side prop"><div class="lbl">Proposed</div><div class="prev"><div style="background:#E6E000;padding:14px;font-family:Georgia,serif;color:#0F0F2D"><div style="font-size:14px">Draft</div><div>↓</div><div style="font-size:17px">Shipped</div></div></div><p dir="ltr">The accent word in ink (13.3:1). The serif and the position already set it apart.</p></div>
+  </div>
+  <footer>
+    <div class="btns" role="group" aria-label="Accent word in blue on saturated yellow">
+      <button class="b" data-v="approve">Approve</button>
+      <button class="b" data-v="reject">Reject</button>
+      <button class="b" data-v="discuss">Discuss</button>
+    </div>
+    <input class="note" type="text" dir="auto" placeholder="Note (optional)" aria-label="Note (optional)">
+  </footer>
+</article>
+<article class="card" data-id="mobile-tabs">
+  <h3 dir="ltr"><span class="t">Tabs on mobile in a single row</span></h3>
+  <div class="cmp">
+    <div class="side cur"><div class="lbl">Today</div><div class="prev"><figure><figcaption><bdi>375</bdi></figcaption><img src="shots/tabs-today.png" alt="375" style="width:100.0%;max-width:375px"></figure></div><p dir="ltr">Four tabs on two rows at 375.</p></div>
+    <div class="side prop"><div class="lbl">Proposed</div><div class="prev"><figure><figcaption><bdi>375</bdi></figcaption><img src="shots/tabs-prop.png" alt="375" style="width:100.0%;max-width:375px"></figure></div><p dir="ltr">One row from 320 to 480. Tap height stays 44px.</p></div>
+  </div>
+  <footer>
+    <div class="btns" role="group" aria-label="Tabs on mobile in a single row">
+      <button class="b" data-v="approve">Approve</button>
+      <button class="b" data-v="reject">Reject</button>
+      <button class="b" data-v="discuss">Discuss</button>
+    </div>
+    <input class="note" type="text" dir="auto" placeholder="Note (optional)" aria-label="Note (optional)">
+  </footer>
+</article>
+<article class="card" data-id="heading-case">
+  <h3 dir="ltr"><span class="t">Headings mix Title Case and sentence case</span></h3>
+  <div class="cmp">
+    <div class="side cur"><div class="lbl">Today</div><p dir="ltr">Pricing Plans / Frequently asked questions / Contact Us</p></div>
+    <div class="side prop"><div class="lbl">Proposed</div><p dir="ltr">Pricing plans / Frequently asked questions / Contact us</p></div>
+  </div>
+  <footer>
+    <div class="btns" role="group" aria-label="Headings mix Title Case and sentence case">
+      <button class="b" data-v="approve">Approve</button>
+      <button class="b" data-v="reject">Reject</button>
+      <button class="b" data-v="discuss">Discuss</button>
+    </div>
+    <input class="note" type="text" dir="auto" placeholder="Note (optional)" aria-label="Note (optional)">
+  </footer>
+</article>
+</div>
+<div class="bar"><div class="bar-in"><div class="count" id="count" aria-live="polite"></div><button class="copy" id="copy">Copy all decisions as a prompt</button></div></div>
+<script>
+(function(){
+  var L={"today": "Today", "proposed": "Proposed", "critical": "Critical", "approve": "Approve", "reject": "Reject", "discuss": "Discuss", "note": "Note (optional)", "copy": "Copy all decisions as a prompt", "copied": "Copied", "decided": "{n} of {t} decided", "undecided": "Not decided", "recommended": "recommended", "option": "option", "missing": "Image missing", "prompt_head": "Apply the approved items, using the chosen option on choice cards. Rejected and undecided items stay as they are, unless a note asks for something else. Answer the Discuss items before changing them. A note overrides the proposal. Look up each id in findings.json for the exact change.", "note_word": "note"}, KEY="decision-review:decisions-dashboard-review:20c52e09", TITLE="Decisions · Dashboard review";
+  var st={}; try{st=JSON.parse(localStorage.getItem(KEY)||'{}');}catch(e){}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(st));}catch(e){}}
+  var cards=[].slice.call(document.querySelectorAll('.card'));
+  function opts(c){return [].slice.call(c.querySelectorAll('.opt'));}
+  function chosen(c){var s=st[c.dataset.id]||{},o=opts(c);if(!o.length)return null;
+    if(s.o!=null&&o[s.o])return o[s.o];return o.filter(function(x){return x.dataset.rec==='1';})[0]||null;}
+  function paint(c){var s=st[c.dataset.id]||{};c.dataset.state=s.v||'';
+    c.querySelectorAll('.b').forEach(function(b){var on=b.dataset.v===s.v;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on);});
+    var ch=chosen(c);opts(c).forEach(function(o){var on=o===ch;o.classList.toggle('sel',on);o.setAttribute('aria-checked',on);});
+    var n=c.querySelector('.note');if(n.value!==(s.n||''))n.value=s.n||'';}
+  function count(){var a=0,r=0,d=0;cards.forEach(function(c){var v=(st[c.dataset.id]||{}).v;if(v==='approve')a++;else if(v==='reject')r++;else if(v==='discuss')d++;});
+    document.getElementById('count').innerHTML=L.decided.replace('{n}','<b>'+(a+r+d)+'</b>').replace('{t}',cards.length)
+      +'<span class="split"> · '+L.approve+' <b>'+a+'</b> · '+L.reject+' <b>'+r+'</b> · '+L.discuss+' <b>'+d+'</b></span>';}
+  cards.forEach(function(c){var id=c.dataset.id;
+    c.querySelectorAll('.b').forEach(function(b){b.addEventListener('click',function(){st[id]=st[id]||{};
+      st[id].v=(st[id].v===b.dataset.v)?'':b.dataset.v;save();paint(c);count();});});
+    opts(c).forEach(function(o,i){function pick(){st[id]=st[id]||{};st[id].o=i;save();paint(c);}
+      o.addEventListener('click',pick);
+      o.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();pick();}});});
+    c.querySelector('.note').addEventListener('input',function(e){st[id]=st[id]||{};st[id].n=e.target.value;save();});
+    paint(c);});
+  count();
+  document.getElementById('copy').addEventListener('click',function(){
+    var lines=[TITLE,L.prompt_head,''];
+    cards.forEach(function(c){var s=st[c.dataset.id]||{};var v=s.v?L[s.v]:L.undecided;var ch=chosen(c);
+      var pick=(ch&&(s.v==='approve'||s.o!=null))?' · '+L.option+': '+ch.dataset.label:'';
+      var kw=' ['+(s.v||'undecided')+']';
+      lines.push(c.dataset.id+' · '+c.querySelector('.t').textContent+' → '+v+kw+pick+(s.n?' · '+L.note_word+': '+s.n:''));});
+    var txt=lines.join('\n'),btn=this;
+    function ok(){btn.classList.add('done');btn.textContent=L.copied;setTimeout(function(){btn.classList.remove('done');btn.textContent=L.copy;},1800);}
+    function fb(){var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(e){}ta.remove();ok();}
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(ok,fb);else fb();});
+})();
+</script>
+</body>
+</html>

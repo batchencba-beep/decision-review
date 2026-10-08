@@ -1,0 +1,102 @@
+{
+  "title": "Decisions · Dashboard review",
+  "lang": "en",
+  "items": [
+    {
+      "id": "card-treatment",
+      "title": "Cards on grey: shadow, frame, or nothing?",
+      "today": {
+        "text": "On white, the white cards almost disappear into the background.",
+        "images": [
+          "shots/cards-today.png"
+        ]
+      },
+      "proposed": {
+        "text": "A, no treatment. On grey, the white cards already show where they end. B and C are for comparison only.",
+        "options": [
+          {
+            "label": "A · No treatment",
+            "recommended": true,
+            "images": [
+              "shots/cards-A.png"
+            ],
+            "change": "dashboard.css .section-grey .card { box-shadow: none; border: 0 }"
+          },
+          {
+            "label": "B · Soft shadow",
+            "images": [
+              "shots/cards-B.png"
+            ],
+            "change": "dashboard.css .section-grey .card { box-shadow: 0 10px 28px -14px rgba(20,20,40,.35) }"
+          },
+          {
+            "label": "C · Hairline",
+            "images": [
+              "shots/cards-C.png"
+            ],
+            "change": "dashboard.css .section-grey .card { border: 1px solid rgba(20,20,40,.18) }"
+          }
+        ]
+      }
+    },
+    {
+      "id": "fan-title",
+      "title": "A card title is hidden in the fan",
+      "critical": true,
+      "today": {
+        "text": "The front card covers the left 40% of the card behind it, exactly where its title starts. Without hover you only see \"…ings\"."
+      },
+      "proposed": {
+        "text": "Open the fan to ±72% and shorten the text area (right: 90px), so all three titles show at rest."
+      },
+      "change": "home.css .fan { --spread: 72% } .fan-card .text { right: 90px }"
+    },
+    {
+      "id": "accent-color",
+      "title": "Accent word in blue on saturated yellow",
+      "today": {
+        "text": "Yellow and blue both used for emphasis, fighting over one word. 4.72:1 leaves no margin for a thin serif.",
+        "html": "<div style=\"background:#E6E000;padding:14px;font-family:Georgia,serif;color:#0F0F2D\"><div style=\"font-size:14px\">Draft</div><div>↓</div><div style=\"font-size:17px;color:#3C3CF7\">Shipped</div></div>"
+      },
+      "proposed": {
+        "text": "The accent word in ink (13.3:1). The serif and the position already set it apart.",
+        "html": "<div style=\"background:#E6E000;padding:14px;font-family:Georgia,serif;color:#0F0F2D\"><div style=\"font-size:14px\">Draft</div><div>↓</div><div style=\"font-size:17px\">Shipped</div></div>"
+      },
+      "change": "hero.css .accent { color: #0F0F2D } (was #3C3CF7)"
+    },
+    {
+      "id": "mobile-tabs",
+      "title": "Tabs on mobile in a single row",
+      "today": {
+        "text": "Four tabs on two rows at 375.",
+        "images": [
+          {
+            "src": "shots/tabs-today.png",
+            "caption": "375"
+          }
+        ]
+      },
+      "proposed": {
+        "text": "One row from 320 to 480. Tap height stays 44px.",
+        "images": [
+          {
+            "src": "shots/tabs-prop.png",
+            "caption": "375"
+          }
+        ]
+      },
+      "change": "tabs.css @media (max-width:480px) { .tabs { flex-wrap: nowrap; gap: 2px } .tabs span { font-size: 11px; min-height: 44px } }"
+    },
+    {
+      "id": "heading-case",
+      "title": "Headings mix Title Case and sentence case",
+      "today": {
+        "text": "Pricing Plans / Frequently asked questions / Contact Us"
+      },
+      "proposed": {
+        "text": "Pricing plans / Frequently asked questions / Contact us"
+      },
+      "change": "pricing.html, faq.html, contact.html: headings to sentence case"
+    }
+  ]
+}
