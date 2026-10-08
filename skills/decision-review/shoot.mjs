@@ -12,20 +12,38 @@
 //   --pad 16              space around the element, in CSS pixels (default 16)
 //   --wait 2500           ms to let the page and its animations settle (default 2500)
 //   --full                the whole page, top to bottom (ignored with --selector)
+//   --logged-in           use the saved sign-in session (see --login)
 //
+// Pages behind a login:
+//   node shoot.mjs --login https://app.example.com
+//     Opens a normal Chrome window with a profile that belongs only to this tool.
+//     Sign in yourself, then quit that window (Cmd+Q on Mac). The session stays saved.
+//   node shoot.mjs <url> <out.png> --logged-in      shoots as the signed-in user
+//   node shoot.mjs --logout                         deletes the saved session
+//   --profile <dir>       where the session lives (default ~/.decision-review/chrome-profile)
+//
+// Your own Chrome profile, passwords and cookies are never touched.
 // Works with http(s):// and file:// URLs. Set CHROME_PATH if Chrome isn't found.
 
 import { spawn, execSync } from 'node:child_process';
-import { existsSync, writeFileSync, mkdtempSync, rmSync, mkdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, writeFileSync, mkdtempSync, rmSync, mkdirSync, lstatSync, readlinkSync } from 'node:fs';
+import { tmpdir, homedir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 
 const args = process.argv.slice(2);
-const FLAGS = ['--full'];
+const FLAGS = ['--full', '--logged-in', '--logout'];
 const pos = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--') && !FLAGS.includes(args[i - 1])));
 const opt = (name, def) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : def; };
 const [url, out] = pos;
-if (!url || !out) {
+const PROFILE_DIR = resolve(opt('profile', join(homedir(), '.decision-review', 'chrome-profile')));
+const loginUrl = opt('login', null);
+
+if (args.includes('--logout')) {
+  rmSync(PROFILE_DIR, { recursive: true, force: true });
+  console.log(`Signed out: deleted ${PROFILE_DIR}`);
+  process.exit(0);
+}
+if (!loginUrl && (!url || !out)) {
   console.error('Usage: node shoot.mjs <url> <out.png> [--selector ".x"] [--css "..."] [--full] [--width 1440] [--height 900] [--scale 2] [--pad 16] [--wait 2500]');
   process.exit(1);
 }
@@ -56,11 +74,50 @@ if (!chromePath) {
   process.exit(1);
 }
 
+function profileInUse() {
+  // Chrome marks a profile in use with a SingletonLock link pointing at "host-PID".
+  // A crash can leave it behind, so check that the process is really alive.
+  const lock = join(PROFILE_DIR, 'SingletonLock');
+  try { lstatSync(lock); } catch { return false; }
+  try {
+    const pid = Number(readlinkSync(lock).split('-').pop());
+    if (pid) { process.kill(pid, 0); return true; }
+  } catch {}
+  for (const f of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
+    try { rmSync(join(PROFILE_DIR, f), { force: true }); } catch {}
+  }
+  return false;
+}
+
+if (loginUrl) {
+  // A normal, visible Chrome window: no automation, no debugging port. The user signs in by hand.
+  mkdirSync(PROFILE_DIR, { recursive: true });
+  if (profileInUse()) {
+    console.error('The sign-in window is already open. Finish there and quit it (Cmd+Q on Mac).');
+    process.exit(1);
+  }
+  console.log(`Opening ${loginUrl} in a separate Chrome window.`);
+  console.log('Sign in there, then quit that window (Cmd+Q on Mac, or close it on Windows/Linux).');
+  const win = spawn(chromePath, [`--user-data-dir=${PROFILE_DIR}`, '--no-first-run', '--no-default-browser-check', '--new-window', loginUrl], { stdio: 'ignore' });
+  const timer = setTimeout(() => { console.error('Still open after 15 minutes, stopping. Run --login again when ready.'); win.kill(); process.exit(1); }, 15 * 60 * 1000);
+  win.on('exit', () => { clearTimeout(timer); console.log(`Saved. Add --logged-in to shoot pages as the signed-in user. Session stored in ${PROFILE_DIR}`); process.exit(0); });
+  await new Promise(() => {});
+}
+
 const W = Number(opt('width', 1440)), H = Number(opt('height', 900));
 const SCALE = Number(opt('scale', 2)), PAD = Number(opt('pad', 16)), WAIT = Number(opt('wait', 2500));
 const selector = opt('selector', null), css = opt('css', null), full = args.includes('--full');
+const loggedIn = args.includes('--logged-in') || args.includes('--profile');
+if (loggedIn && !existsSync(PROFILE_DIR)) {
+  console.error(`No saved sign-in yet. Run: node shoot.mjs --login <the app's URL>, sign in, quit that window, then try again.`);
+  process.exit(1);
+}
+if (loggedIn && profileInUse()) {
+  console.error('The sign-in Chrome window is still open. Quit it (Cmd+Q on Mac) and run this again.');
+  process.exit(1);
+}
 
-const profile = mkdtempSync(join(tmpdir(), 'shoot-'));
+const profile = loggedIn ? PROFILE_DIR : mkdtempSync(join(tmpdir(), 'shoot-'));
 const port = 9300 + Math.floor(Math.random() * 600);
 const chrome = spawn(chromePath, [
   '--headless=new', '--disable-gpu', '--hide-scrollbars', '--allow-file-access-from-files',
@@ -68,10 +125,17 @@ const chrome = spawn(chromePath, [
 ], { stdio: 'ignore' });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-function done(code, msg) {
+let connected = false;
+const exited = new Promise((r) => chrome.once('exit', r));
+async function done(code, msg) {
   if (msg) console[code ? 'error' : 'log'](msg);
+  if (loggedIn && connected) {
+    // Quit Chrome properly so a refreshed session is written to disk, not lost.
+    try { await Promise.race([send('Browser.close'), sleep(3000)]); } catch {}
+    await Promise.race([exited, sleep(5000)]);
+  }
   try { chrome.kill(); } catch {}
-  try { rmSync(profile, { recursive: true, force: true }); } catch {}
+  if (!loggedIn) { try { rmSync(profile, { recursive: true, force: true }); } catch {} }
   process.exit(code);
 }
 
@@ -80,10 +144,11 @@ for (let i = 0; i < 60 && !targets; i++) {
   try { targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json(); } catch { await sleep(200); }
 }
 const page = targets?.find((t) => t.type === 'page');
-if (!page) done(1, 'Could not start headless Chrome.');
+if (!page) await done(1, 'Could not start headless Chrome.');
 
 const ws = new WebSocket(page.webSocketDebuggerUrl);
 await new Promise((r, j) => { ws.addEventListener('open', r); ws.addEventListener('error', j); });
+connected = true;
 let id = 0; const pending = new Map();
 ws.addEventListener('message', (e) => {
   const m = JSON.parse(e.data);
@@ -95,8 +160,18 @@ const evaluate = async (expression) => (await send('Runtime.evaluate', { express
 await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: SCALE, mobile: W < 600 });
 await send('Page.enable');
 const nav = await send('Page.navigate', { url });
-if (nav.result?.errorText) done(1, `Could not open ${url}: ${nav.result.errorText}`);
+if (nav.result?.errorText) await done(1, `Could not open ${url}: ${nav.result.errorText}`);
 await sleep(WAIT);
+
+const landed = await evaluate('location.href');
+try {
+  const a = new URL(url), b = new URL(landed);
+  const gate = /(^|[\/._-])(log-?in|sign-?in|auth|sso|session|oauth)([\/._-]|$)/i;
+  if (a.href !== b.href && gate.test(b.hostname + b.pathname) && !gate.test(a.hostname + a.pathname)) {
+    console.error(`warning: ${url} redirected to ${landed}, which looks like a sign-in page.` +
+      (loggedIn ? ' The saved session may have expired: run --login again.' : ' Run: node shoot.mjs --login ' + a.origin + ' once, then add --logged-in.'));
+  }
+} catch {}
 
 if (css) {
   await evaluate(`(() => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(css)}; document.head.appendChild(s); })()`);
@@ -112,7 +187,7 @@ if (selector) {
     const r = el.getBoundingClientRect();
     return { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height };
   })()`);
-  if (!box) done(1, `No element matches ${selector} on ${url}.`);
+  if (!box) await done(1, `No element matches ${selector} on ${url}.`);
   await sleep(700);
   clip = { x: Math.max(0, box.x - PAD), y: Math.max(0, box.y - PAD), width: box.w + PAD * 2, height: box.h + PAD * 2, scale: 1 };
 }
@@ -129,8 +204,7 @@ if (!clip && full) {
 }
 
 const shot = await send('Page.captureScreenshot', { format: 'png', ...(clip ? { clip, captureBeyondViewport: true } : {}) });
-if (!shot.result?.data) done(1, 'Screenshot failed.');
+if (!shot.result?.data) await done(1, 'Screenshot failed.');
 mkdirSync(dirname(resolve(out)), { recursive: true });
 writeFileSync(out, Buffer.from(shot.result.data, 'base64'));
-ws.close();
-done(0, out);
+await done(0, out);

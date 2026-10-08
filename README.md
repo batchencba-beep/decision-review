@@ -64,13 +64,26 @@ python3 /path/to/decision-review/skills/decision-review/build.py findings.json d
 open decisions.html
 ```
 
+## Pages behind a login
+
+Most real screens sit behind a sign-in. The first time Claude needs one, it opens a normal Chrome window on the app's sign-in page. You sign in yourself and close the window, and from then on screenshots are taken as you, signed in.
+
+That window uses a separate Chrome profile that belongs only to this tool, stored in `~/.decision-review/`. Claude never sees or types your password, and your own Chrome profile, cookies and passwords are never touched. To delete the saved session: `node skills/decision-review/shoot.mjs --logout`, or delete that folder.
+
+## What it does on your computer
+
+- **Nothing leaves your machine.** The page builder makes no network calls, and the decision page loads nothing from the internet. Your decisions are saved only in your browser.
+- **Screenshots** open only the address being reviewed, in a separate Chrome profile: a temporary one that's deleted after each shot, or the saved sign-in profile above.
+- **Small and readable.** Two scripts, about 600 lines in total, no dependencies to install.
+- **You see every command.** Claude Code asks before it runs anything, unless you've told it not to.
+
 ## What's inside
 
 | File | What it does |
 |---|---|
 | `SKILL.md` | Instructions for Claude: when to use it, the JSON schema, how to write the cards |
 | `build.py` | Turns `findings.json` into the page, and explains what's wrong if the JSON isn't right |
-| `shoot.mjs` | Screenshots one element of a page, as it is or with proposed CSS applied |
+| `shoot.mjs` | Screenshots one element of a page, as it is or with proposed CSS applied, signed in if needed |
 | `example/` | A ready example to build and open |
 
 ## What's in a card

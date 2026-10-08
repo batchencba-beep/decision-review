@@ -1,10 +1,18 @@
 {
   "name": "decision-review",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Turns design review findings into a one-page decision board: Today vs Proposed, Approve / Reject / Discuss, and one button that copies every decision back to Claude as a prompt.",
-  "author": { "name": "Bat Chen Ben Arza", "url": "https://batchenba.com" },
+  "author": {
+    "name": "Bat Chen Ben Arza",
+    "url": "https://batchenba.com"
+  },
   "homepage": "https://github.com/batchencba-beep/decision-review",
   "repository": "https://github.com/batchencba-beep/decision-review",
   "license": "MIT",
-  "keywords": ["design", "review", "decisions", "ux"]
+  "keywords": [
+    "design",
+    "review",
+    "decisions",
+    "ux"
+  ]
 }

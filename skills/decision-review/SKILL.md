@@ -110,6 +110,17 @@ node $S/shoot.mjs https://example.com shots/home-full.png --full
 - Save images in a `shots/` folder next to the HTML and use relative paths in the JSON.
 - No Node or Chrome, or nothing you can open? Use screenshots the user already has, a small `html` swatch, or a text-only card.
 
+## Pages behind a login
+
+If `shoot.mjs` warns that a page redirected to a sign-in page, the screens are behind a login. Don't fall back to text, and never ask for or type the user's password. Instead:
+
+1. Tell the user, in one line, that a Chrome window will open for them to sign in, and that it uses a separate profile, not their own Chrome.
+2. Run `node "${CLAUDE_SKILL_DIR}/shoot.mjs" --login <the app's address>` with a long timeout (it waits until the window is closed, up to 15 minutes).
+3. The user signs in themselves, then quits that window (Cmd+Q on Mac).
+4. Add `--logged-in` to every `shoot.mjs` call for that app. The session stays saved for next time.
+
+If a `--logged-in` shot warns again, the session expired: repeat `--login`. `node "${CLAUDE_SKILL_DIR}/shoot.mjs" --logout` deletes the saved session; offer it if the user asks to sign out.
+
 ## Rounds and saved decisions
 
 Clicks and notes are saved in the user's browser, per page. Rebuilding the same findings keeps them. A new round with different items starts clean on its own. To start over on the same findings, change the `title` (e.g. add "round 2").
