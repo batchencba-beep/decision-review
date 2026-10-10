@@ -10,7 +10,8 @@
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:16px;line-height:1.55;padding:40px 16px 140px}
 .wrap{max-width:1120px;margin:0 auto}
 h1{font-family:Georgia,"Times New Roman",serif;font-size:30px;line-height:1.2;font-weight:400;letter-spacing:-.01em;margin-bottom:24px;text-wrap:balance}
-.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:14px;border-inline-start:4px solid transparent;transition:border-color .2s}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:20px;padding-inline-start:23px;margin-bottom:14px}
+.card[data-state=approve],.card[data-state=reject],.card[data-state=discuss]{border-inline-start-width:4px;padding-inline-start:20px}
 .card[data-state=approve]{border-inline-start-color:var(--ok)}
 .card[data-state=reject]{border-inline-start-color:var(--no)}
 .card[data-state=discuss]{border-inline-start-color:var(--talk)}
@@ -25,8 +26,7 @@ h1{font-family:Georgia,"Times New Roman",serif;font-size:30px;line-height:1.2;fo
 .prop .lbl{color:var(--accent)}
 .side p{font-size:14px;color:var(--ink-2);white-space:pre-wrap;text-wrap:pretty;text-align:start}
 .side p:empty{display:none}
-.prev{background:#fff;border-radius:4px;padding:10px;margin-bottom:10px;overflow:hidden}
-.prop .prev{background:var(--bg)}
+.prev{background:#E9E9E7;border-radius:4px;padding:10px;margin-bottom:10px;overflow:hidden}
 .prev img{display:block;max-width:100%;height:auto;border-radius:3px}
 .prev figure+figure{margin-top:12px}
 .prev figcaption{font-size:13px;font-weight:600;margin-bottom:6px}
@@ -96,8 +96,8 @@ footer{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:16px}
 <article class="card" data-id="accent-color">
   <h3 dir="ltr"><span class="t">Accent word in blue on saturated yellow</span></h3>
   <div class="cmp">
-    <div class="side cur"><div class="lbl">Today</div><div class="prev"><div style="background:#E6E000;padding:14px;font-family:Georgia,serif;color:#0F0F2D"><div style="font-size:14px">Draft</div><div>↓</div><div style="font-size:17px;color:#3C3CF7">Shipped</div></div></div><p dir="ltr">Yellow and blue both used for emphasis, fighting over one word. 4.72:1 leaves no margin for a thin serif.</p></div>
-    <div class="side prop"><div class="lbl">Proposed</div><div class="prev"><div style="background:#E6E000;padding:14px;font-family:Georgia,serif;color:#0F0F2D"><div style="font-size:14px">Draft</div><div>↓</div><div style="font-size:17px">Shipped</div></div></div><p dir="ltr">The accent word in ink (13.3:1). The serif and the position already set it apart.</p></div>
+    <div class="side cur"><div class="lbl">Today</div><div class="prev"><div dir="auto"><div style="background:#E6E000;padding:14px;font-family:Georgia,serif;color:#0F0F2D"><div style="font-size:14px">Draft</div><div>↓</div><div style="font-size:17px;color:#3C3CF7">Shipped</div></div></div></div><p dir="ltr">Yellow and blue both used for emphasis, fighting over one word. 4.72:1 leaves no margin for a thin serif.</p></div>
+    <div class="side prop"><div class="lbl">Proposed</div><div class="prev"><div dir="auto"><div style="background:#E6E000;padding:14px;font-family:Georgia,serif;color:#0F0F2D"><div style="font-size:14px">Draft</div><div>↓</div><div style="font-size:17px">Shipped</div></div></div></div><p dir="ltr">The accent word in ink (13.3:1). The serif and the position already set it apart.</p></div>
   </div>
   <footer>
     <div class="btns" role="group" aria-label="Accent word in blue on saturated yellow">

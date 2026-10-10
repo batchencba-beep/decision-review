@@ -12,6 +12,16 @@
 //   --pad 16              space around the element, in CSS pixels (default 16)
 //   --wait 2500           ms to let the page and its animations settle (default 2500)
 //   --full                the whole page, top to bottom (ignored with --selector)
+//   --clip x,y,w,h        crop to this rectangle (page pixels; image pixels for an image)
+//
+// Images (a Figma export, a screenshot you already have): pass the file instead of a URL.
+//   node shoot.mjs slide.png crop.png --clip 740,150,560,580
+//   node shoot.mjs slide.png no-chart.png --clip 740,150,560,580 --cover 760,440,275,275,#F7F7F7
+//   --cover x,y,w,h,#hex  paint over a rectangle, to show an element removed (repeatable).
+//                         Coordinates are in the source image's pixels, not the crop's.
+//                         Leave the color out to use the color just left of the rectangle.
+//                         Works on flat backgrounds; a gradient will show a band.
+//   node shoot.mjs slide.png --pick 760,430      prints the color at that pixel
 //   --logged-in           use the saved sign-in session (see --login)
 //
 // Pages behind a login:
@@ -43,8 +53,8 @@ if (args.includes('--logout')) {
   console.log(`Signed out: deleted ${PROFILE_DIR}`);
   process.exit(0);
 }
-if (!loginUrl && (!url || !out)) {
-  console.error('Usage: node shoot.mjs <url> <out.png> [--selector ".x"] [--css "..."] [--full] [--width 1440] [--height 900] [--scale 2] [--pad 16] [--wait 2500]');
+if (!loginUrl && (!url || (!out && !args.includes('--pick')))) {
+  console.error('Usage: node shoot.mjs <url> <out.png> [--selector ".x"] [--css "..."] [--full] [--clip x,y,w,h] [--cover x,y,w,h,#hex] [--width 1440] [--height 900] [--scale 2] [--pad 16] [--wait 2500]');
   process.exit(1);
 }
 if (typeof WebSocket === 'undefined') {
@@ -107,6 +117,30 @@ if (loginUrl) {
 const W = Number(opt('width', 1440)), H = Number(opt('height', 900));
 const SCALE = Number(opt('scale', 2)), PAD = Number(opt('pad', 16)), WAIT = Number(opt('wait', 2500));
 const selector = opt('selector', null), css = opt('css', null), full = args.includes('--full');
+const nums = (v) => String(v).split(',').map((n) => Number(n.trim()));
+function rect(name, v) {
+  const n = nums(v).slice(0, 4);
+  if (n.length < 4 || n.some((x) => !Number.isFinite(x)) || n[0] < 0 || n[1] < 0 || n[2] <= 0 || n[3] <= 0) {
+    console.error(`--${name} needs four numbers: x,y,width,height (x and y from the top left, not negative). Got "${v}".`);
+    process.exit(1);
+  }
+  return n;
+}
+const pickArg = opt('pick', null);
+const clipArg = opt('clip', null);
+const covers = args.map((a, i) => (a === '--cover' ? args[i + 1] : null)).filter(Boolean);
+
+// A plain file path works too. An image file is shown at its real pixel size.
+let target = url;
+if (target && !/^[a-z][a-z0-9+.-]*:/i.test(target) && existsSync(target)) target = 'file://' + resolve(target);
+const imageMode = !!target && target.startsWith('file://') && /\.(png|jpe?g|webp|gif)$/i.test(target);
+let imagePage = null;
+if (imageMode) {
+  const boxes = covers.map((c) => { const [x, y, w, h] = rect('cover', c); const color = (c.split(',')[4] || '').trim();
+    return `<div class="cover" data-x="${x}" data-y="${y}" style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;background:${color || 'transparent'}" ${color ? '' : 'data-auto="1"'}></div>`; }).join('');
+  imagePage = join(tmpdir(), `shoot-image-${process.pid}.html`);
+  writeFileSync(imagePage, `<!doctype html><body style="margin:0;position:relative;background:#fff"><img id="i" src="${target}" style="display:block">${boxes}</body>`);
+}
 const loggedIn = args.includes('--logged-in') || args.includes('--profile');
 if (loggedIn && !existsSync(PROFILE_DIR)) {
   console.error(`No saved sign-in yet. Run: node shoot.mjs --login <the app's URL>, sign in, quit that window, then try again.`);
@@ -159,13 +193,41 @@ const evaluate = async (expression) => (await send('Runtime.evaluate', { express
 
 await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: SCALE, mobile: W < 600 });
 await send('Page.enable');
-const nav = await send('Page.navigate', { url });
+const nav = await send('Page.navigate', { url: imageMode ? 'file://' + imagePage : target });
 if (nav.result?.errorText) await done(1, `Could not open ${url}: ${nav.result.errorText}`);
-await sleep(WAIT);
+await sleep(imageMode ? 600 : WAIT);
+
+let imageClip = null;
+if (imageMode) {
+  const size = await evaluate(`(async () => { const i = document.getElementById('i'); if (!i.complete) await new Promise((r) => { i.onload = r; i.onerror = r; }); return { w: i.naturalWidth, h: i.naturalHeight }; })()`);
+  try { rmSync(imagePage, { force: true }); } catch {}
+  if (!size || !size.w) await done(1, `Could not read the image ${url}.`);
+  await send('Emulation.setDeviceMetricsOverride', { width: size.w, height: size.h, deviceScaleFactor: 1, mobile: false });
+  await sleep(200);
+  // Read colors straight from the image: for --pick, and for covers with no color given.
+  const color = (x, y) => evaluate(`(() => { const i = document.getElementById('i'); const c = document.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight; const g = c.getContext('2d'); g.drawImage(i, 0, 0); const d = g.getImageData(${Math.round(x)}, ${Math.round(y)}, 1, 1).data; return '#' + [d[0], d[1], d[2]].map((v) => v.toString(16).padStart(2, '0')).join(''); })()`);
+  if (pickArg) {
+    const [px, py] = nums(pickArg);
+    if (!(px >= 0 && py >= 0 && px < size.w && py < size.h)) await done(1, `--pick ${pickArg} is outside the image (${size.w}x${size.h}).`);
+    await done(0, await color(px, py));
+  }
+  const autos = await evaluate(`[...document.querySelectorAll('.cover[data-auto]')].map((e) => [Number(e.dataset.x), Number(e.dataset.y)])`);
+  for (let k = 0; k < autos.length; k++) {
+    const [cx, cy] = autos[k];
+    const hex = await color(Math.max(0, cx - 3), cy + 2);
+    await evaluate(`document.querySelectorAll('.cover[data-auto]')[${k}].style.background = ${JSON.stringify(hex)}`);
+  }
+  const [x, y, w, h] = clipArg ? rect('clip', clipArg) : [0, 0, size.w, size.h];
+  if (x >= size.w || y >= size.h) await done(1, `--clip ${clipArg} starts outside the image, which is ${size.w}x${size.h} pixels.`);
+  const cw = Math.min(w, size.w - x), ch = Math.min(h, size.h - y);
+  if (cw < w || ch < h) console.error(`warning: --clip ${clipArg} runs past the image (${size.w}x${size.h}); cropped to ${cw}x${ch}.`);
+  imageClip = { x, y, width: cw, height: ch, scale: 1 };
+}
 
 const landed = await evaluate('location.href');
 try {
-  const a = new URL(url), b = new URL(landed);
+  if (imageMode) throw 0;
+  const a = new URL(target), b = new URL(landed);
   const gate = /(^|[\/._-])(log-?in|sign-?in|auth|sso|session|oauth)([\/._-]|$)/i;
   if (a.href !== b.href && gate.test(b.hostname + b.pathname) && !gate.test(a.hostname + a.pathname)) {
     console.error(`warning: ${url} redirected to ${landed}, which looks like a sign-in page.` +
@@ -178,8 +240,12 @@ if (css) {
   await sleep(600);
 }
 
-let clip;
-if (selector) {
+let clip = imageClip;
+if (!clip && clipArg) {
+  const [x, y, w, h] = rect('clip', clipArg);
+  clip = { x, y, width: w, height: h, scale: 1 };
+}
+if (!imageMode && selector) {
   const box = await evaluate(`(() => {
     const el = document.querySelector(${JSON.stringify(selector)});
     if (!el) return null;
@@ -199,11 +265,16 @@ if (!clip && full) {
   await send('Emulation.setDeviceMetricsOverride', { width: W, height: Math.max(H, size.h), deviceScaleFactor: SCALE, mobile: W < 600 });
   await evaluate('window.scrollTo(0, 0)');
   await sleep(800);
+  // The viewport now is the whole page, so a plain viewport capture is enough.
+  // (Clipping "beyond the viewport" shifts right-to-left pages sideways.)
   const fullH = await evaluate('document.documentElement.scrollHeight');
-  clip = { x: 0, y: 0, width: W, height: Math.max(H, fullH), scale: 1 };
+  if (fullH > Math.max(H, size.h)) {
+    await send('Emulation.setDeviceMetricsOverride', { width: W, height: fullH, deviceScaleFactor: SCALE, mobile: W < 600 });
+    await sleep(400);
+  }
 }
 
-const shot = await send('Page.captureScreenshot', { format: 'png', ...(clip ? { clip, captureBeyondViewport: true } : {}) });
+const shot = await send('Page.captureScreenshot', { format: 'png', ...(clip ? { clip, captureBeyondViewport: !imageMode } : {}) });
 if (!shot.result?.data) await done(1, 'Screenshot failed.');
 mkdirSync(dirname(resolve(out)), { recursive: true });
 writeFileSync(out, Buffer.from(shot.result.data, 'base64'));

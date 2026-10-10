@@ -64,6 +64,10 @@ python3 /path/to/decision-review/skills/decision-review/build.py findings.json d
 open decisions.html
 ```
 
+## Figma files and decks
+
+It isn't only for web pages. Point Claude at a Figma file or a deck and it reviews the frames, crops what matters, and shows the proposal next to it. With a Figma connector it takes the frames itself; without one, export them and it works from the images.
+
 ## Pages behind a login
 
 Most real screens sit behind a sign-in. The first time Claude needs one, it opens a normal Chrome window on the app's sign-in page. You sign in yourself and close the window, and from then on screenshots are taken as you, signed in.
@@ -93,7 +97,7 @@ That window uses a separate Chrome profile that belongs only to this tool, store
 - Approve, Reject, Discuss, and a note
 - Decisions are saved in the browser, so you can close the page and come back
 
-English and Hebrew labels are built in (`"lang": "he"` renders right to left, and mixed Hebrew/English text keeps its direction). Any label can be changed with `"labels"` in the JSON.
+**Language.** The page comes in the language you talk to Claude in. English and Hebrew are built in (Hebrew renders right to left, and mixed Hebrew/English text keeps its direction). Want the other one? Just say "decision pages in English" or "בעברית". Any button label can be changed with `"labels"` in the JSON.
 
 ## Feedback
 

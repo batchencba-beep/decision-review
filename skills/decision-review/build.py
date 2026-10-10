@@ -124,7 +124,9 @@ class Page:
     def preview(self, side, alt):
         parts = self.images(side.get("images"), alt)
         if side.get("html"):
-            parts += side["html"]  # trusted: written by the agent for this local page
+            # trusted: written by the agent for this local page. dir="auto" keeps an
+            # English swatch left-to-right inside a right-to-left page, and vice versa.
+            parts += f'<div dir="auto">{side["html"]}</div>'
         return f'<div class="prev">{parts}</div>' if parts else ""
 
     def options(self, opts, title):
@@ -133,7 +135,7 @@ class Page:
             rec = f' <span>({L["recommended"]})</span>' if o.get("recommended") else ""
             vis = self.images(o.get("images"), f'{title}: {o["label"]}')
             if o.get("html"):
-                vis += o["html"]
+                vis += f'<div dir="auto">{o["html"]}</div>'
             figs.append(
                 f'<div class="opt" role="radio" tabindex="0" aria-checked="false" data-i="{i}" '
                 f'data-label="{esc(o["label"])}" data-rec="{1 if o.get("recommended") else 0}">'
@@ -176,7 +178,8 @@ CSS = """
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:16px;line-height:1.55;padding:40px 16px 140px}
 .wrap{max-width:1120px;margin:0 auto}
 h1{font-family:Georgia,"Times New Roman",serif;font-size:30px;line-height:1.2;font-weight:400;letter-spacing:-.01em;margin-bottom:24px;text-wrap:balance}
-.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:14px;border-inline-start:4px solid transparent;transition:border-color .2s}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:20px;padding-inline-start:23px;margin-bottom:14px}
+.card[data-state=approve],.card[data-state=reject],.card[data-state=discuss]{border-inline-start-width:4px;padding-inline-start:20px}
 .card[data-state=approve]{border-inline-start-color:var(--ok)}
 .card[data-state=reject]{border-inline-start-color:var(--no)}
 .card[data-state=discuss]{border-inline-start-color:var(--talk)}
@@ -191,8 +194,7 @@ h1{font-family:Georgia,"Times New Roman",serif;font-size:30px;line-height:1.2;fo
 .prop .lbl{color:var(--accent)}
 .side p{font-size:14px;color:var(--ink-2);white-space:pre-wrap;text-wrap:pretty;text-align:start}
 .side p:empty{display:none}
-.prev{background:#fff;border-radius:4px;padding:10px;margin-bottom:10px;overflow:hidden}
-.prop .prev{background:var(--bg)}
+.prev{background:#E9E9E7;border-radius:4px;padding:10px;margin-bottom:10px;overflow:hidden}
 .prev img{display:block;max-width:100%;height:auto;border-radius:3px}
 .prev figure+figure{margin-top:12px}
 .prev figcaption{font-size:13px;font-weight:600;margin-bottom:6px}

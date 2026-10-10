@@ -15,6 +15,14 @@ Based on the review interface Kyle Zantos showed on Dive Club (Aug 2026): gather
 - Whenever more than two or three changes are waiting on the user's call.
 - Not for a single yes/no question. Just ask that one.
 
+## Language
+
+Write the page in the language the user is writing to you in: titles, card text and buttons. Set `"lang": "he"` for Hebrew or `"en"` for English. If they ask for the other language ("decision pages in English"), switch and keep it for the rest of the session. For any other language, keep writing in it and translate the buttons with `labels`.
+
+Image paths are relative to the HTML file, so a second-language copy in another folder can point back at the same `shots/` (`../shots/x.png`).
+
+In a Hebrew page, put English examples, product names in a list, or copy samples on their own line, not in the middle of a Hebrew sentence. Mixed lines jump around when read right to left.
+
 ## How (keep it cheap)
 
 You never write HTML for this. You write one small JSON file and run the script. The script owns all the markup.
@@ -24,7 +32,7 @@ You never write HTML for this. You write one small JSON file and run the script.
 1. If a change is visual and you can open the thing being reviewed, take the Today / Proposed images first (see "Getting the images").
 2. Write `findings.json` next to where the page should live (schema below).
 3. Run `python3 "${CLAUDE_SKILL_DIR}/build.py" findings.json decisions.html`. If it prints errors, fix the JSON and run it again. A warning (like a missing image) still builds, but fix it: the card will show a red "Image missing" box.
-4. Check the page before showing it: `node "${CLAUDE_SKILL_DIR}/shoot.mjs" file://<abs path>/decisions.html check.png --full --width 1280`, then look at `check.png`. Every image should load and be readable. Delete `check.png` after.
+4. Check the page before showing it: `node "${CLAUDE_SKILL_DIR}/shoot.mjs" file://<abs path>/decisions.html check.png --full --width 1280`, then look at `check.png`. Every image should load and be readable. A long page is hard to judge whole: look closer at parts of it with `shoot.mjs check.png part.png --clip 0,0,1280,1400`. Delete the check images after.
 5. Open it for the user (`open decisions.html` on macOS, `xdg-open` on Linux, `start` on Windows; if there's no display, just give the path) and tell them, in one line, how many decisions are waiting.
 6. Stop and wait.
 
@@ -84,9 +92,9 @@ Then reply with what you applied, per id, in a short list. If you rebuild the pa
 - `title` (required): names the page and starts the copied prompt. Use something specific, like "Homepage review · round 2".
 - `id` (required, unique): short. It only appears in the copied prompt, never on screen.
 - `change` (strongly recommended, on the item or on each option): the exact edit, never shown on the page. File, selector and values, or the exact new copy. Usually the same CSS you passed to `shoot.mjs --css`. It's what lets you, or a fresh session, apply the decision precisely.
-- `today` / `proposed`: `text`, plus optionally `images` or `html` (a tiny inline-styled swatch, e.g. a color chip or a type sample).
+- `today` / `proposed`: `text`, plus optionally `images` or `html` (a tiny inline-styled swatch, e.g. a color chip or a type sample). Use `\n` in `text` for a line break. A swatch takes its direction from its own content, so an English sample stays left to right on a Hebrew page.
 - `images`: a path relative to the HTML file, or `{ "src", "caption", "alt", "scale" }`. A `caption` is a small label above that one image, for things like a breakpoint ("390") or a variant detail. Don't repeat the box label ("Today") in it.
-- `proposed.options`: 2 to 4 variants. The user clicks one to choose it; the recommended one is pre-selected.
+- `proposed.options`: 2 to 4 variants, each with a `label` and optionally `images`, `html`, `recommended` and `change`. The user clicks one to choose it; the recommended one is pre-selected. Options share the box, so each is shown smaller than Today: crop tight.
 - `critical`: `true` only for things that are broken or blocking. Most items leave it out.
 - `scale` (top level, default 2): the pixel density of your screenshots. `shoot.mjs` shoots at 2. Use 1 for ordinary 1x screenshots, or set it per image.
 - `lang`: `"en"` or `"he"` (Hebrew renders right to left). `labels` overrides any button text.
@@ -108,7 +116,22 @@ node $S/shoot.mjs https://example.com shots/home-full.png --full
 - Render the proposal with `--css` so Today and Proposed are the same crop. The page shows every image in a card at the same scale, so a bigger element looks bigger. If the change needs markup, describe it in text instead.
 - Mobile: `--width 390 --height 844`. Slow animations: raise `--wait`.
 - Save images in a `shots/` folder next to the HTML and use relative paths in the JSON.
+- To crop an image you already have, use `shoot.mjs <image> <out> --clip x,y,w,h`. Don't rely on other image libraries; the user may not have them.
 - No Node or Chrome, or nothing you can open? Use screenshots the user already has, a small `html` swatch, or a text-only card.
+
+## Designs that aren't web pages (Figma, slides, exported screens)
+
+The page takes any image, so the same flow works for a Figma file or a deck.
+
+- **Today**: get a picture of each frame or slide. With a Figma connector, use its screenshot tool per frame and save the PNGs to `shots/`. Otherwise ask the user to export the frames.
+- **Crop** to the part that changes with `shoot.mjs`, no other tools needed: `node $S/shoot.mjs shots/slide-1.png shots/s1-today.png --clip 740,150,560,580` (x, y, width, height in image pixels).
+- **Proposed**, in this order of preference:
+  1. Removing something: paint over it with `--cover x,y,w,h` on the same `--clip`. Coordinates are in the full image's pixels, not the crop's, and the flag can repeat. With no color it uses the color just left of the rectangle; add `,#hex` to set one (`shoot.mjs slide.png --pick x,y` prints a pixel's color). This works on flat backgrounds only: on a gradient it leaves a visible band, so describe that change in text.
+  2. A type, color or small copy change: an `html` swatch using the design's own fonts and colors.
+  3. A structural change you can't mock honestly: describe it in text. Don't fake a picture.
+- Figma exports are 1x unless you asked for more, so set `"scale": 1` at the top of the JSON.
+- If you got the frames through a Figma connector, put the frame's node id in each `change`, so applying it is exact. For plain exported images, name the slide and the element.
+- Applying an approved change means editing the user's design file. Do it only for what they approved, and tell them which frames you touched.
 
 ## Pages behind a login
 
