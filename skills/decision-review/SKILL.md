@@ -7,7 +7,7 @@ description: Turn a list of proposals (design review findings, agent suggestions
 
 You hand the user a page to decide on, not a wall of text to decode. They look, click, and paste their decisions back to you.
 
-Based on the review interface Kyle Zantos showed on Dive Club (Aug 2026): gather the proposals, let the human approve, deny or discuss each one, and copy every decision back into the session.
+Based on the review interface Kyle Zantos showed on Dive Club (Aug 2026): gather the proposals, show each one next to how things look today, let the human approve, deny or discuss it, and copy every decision back into the session.
 
 ## When to use
 

@@ -10,7 +10,7 @@ When an agent reviews your design, it usually answers with a long list you have 
 
 ## Credit
 
-The idea comes from Kyle Zantos, who showed his review interface for agent proposals on [Dive Club](https://www.dive.club/deep-dives/kyle-zantos-3) (August 2026): gather the proposals, approve, deny or discuss each one, and copy every decision back into the session. This is an open implementation of that approach.
+The idea comes from Kyle Zantos, who showed his review interface for agent proposals on [Dive Club](https://www.dive.club/deep-dives/kyle-zantos-3) (August 2026): gather the proposals, show each one next to how things look today, approve, deny or discuss it, and copy every decision back into the session. This is an open implementation of that approach.
 
 ## Why it's cheap
 
