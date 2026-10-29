@@ -1,7 +1,7 @@
 {
   "name": "decision-review",
-  "version": "0.3.0",
-  "description": "Turns design review findings into a one-page decision board: Today vs Proposed, Approve / Reject / Discuss, and one button that copies every decision back to Claude as a prompt.",
+  "version": "0.4.0",
+  "description": "Design review with Claude: a one-page decision board (Today vs Proposed, Approve / Reject / Discuss, copied back as a prompt), and a Figma-style live editor you design in by hand and send back to Claude as exact edits.",
   "author": {
     "name": "Bat Chen Ben Arza",
     "url": "https://batchenba.com"
@@ -13,6 +13,9 @@
     "design",
     "review",
     "decisions",
-    "ux"
+    "ux",
+    "editor",
+    "figma",
+    "live-edit"
   ]
 }

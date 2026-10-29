@@ -2,7 +2,7 @@
 
 > **Beta.** It works, I use it daily, and I'd love to hear where it breaks for you. See [Feedback](#feedback).
 
-A Claude Code skill that turns a pile of proposals into a page you decide on.
+Claude Code skills for reviewing design with Claude: a page you decide on, and an editor you design in by hand.
 
 When an agent reviews your design, it usually answers with a long list you have to read, picture in your head, and reply to in text. With this skill it opens a page instead: one card per proposal, **Today** next to **Proposed**, and three buttons. You look, click, add a note where you disagree, and one button copies every decision back to Claude as a prompt.
 
@@ -20,7 +20,7 @@ Claude never writes the page. It writes one short `findings.json`, and a small P
 
 - [Claude Code](https://claude.com/claude-code)
 - Python 3.8+ (builds the page, no packages needed)
-- Optional, for before/after screenshots: Node 22+ and Google Chrome. Without them you still get the page, with text and color swatches instead of screenshots.
+- Node 22+ and Google Chrome: needed for live edit, optional for decision pages. Without them a decision page shows text and color swatches instead of screenshots.
 
 ## Install
 
@@ -64,6 +64,24 @@ python3 /path/to/decision-review/skills/decision-review/build.py findings.json d
 open decisions.html
 ```
 
+## Live edit: design it by hand, then hand it back
+
+The second skill in the plugin. Sometimes it's faster to do it than to describe it. Ask Claude to open a page it built (or any URL) in the editor:
+
+> Open it in the editor, I want to adjust it myself.
+
+A Chrome window opens with a Figma-style editor on top of the real page: **Layers** on the left, **Design** on the right. Click to select, drag to reorder or move, pull the handles to resize, double-click text to rewrite it, and set spacing, auto layout, type, color, radius, stroke, shadow and blur in the panel. Under each element there's an **Intent & interaction** box for what it should do ("lifts on hover", "opens the pricing drawer").
+
+Click **Send to Claude**. Claude gets `edits.json`, an exact list of every element, property and value before and after, plus before/after screenshots. It builds the changes into the source (into the real CSS rules and components, not as inline styles), turns your notes into interactions, and tells you what it changed.
+
+Shortcuts work like in Figma: Esc parent, Enter child, arrows nudge, Shift for 10px, Cmd+D duplicate, Cmd+Z undo, Cmd/Ctrl-drag to move freely, drag a field's label to scrub its value. **Interact** mode lets you click through the page normally. Hebrew and English (`--lang he`).
+
+To try it by hand:
+
+```bash
+node skills/live-edit/edit.mjs skills/decision-review/example/decisions.html --out /tmp/edits.json
+```
+
 ## Figma files and decks
 
 It isn't only for web pages. Point Claude at a Figma file or a deck and it reviews the frames, crops what matters, and shows the proposal next to it. With a Figma connector it takes the frames itself; without one, export them and it works from the images.
@@ -76,9 +94,9 @@ That window uses a separate Chrome profile that belongs only to this tool, store
 
 ## What it does on your computer
 
-- **Nothing leaves your machine.** The page builder makes no network calls, and the decision page loads nothing from the internet. Your decisions are saved only in your browser.
+- **Nothing leaves your machine.** The page builder and the editor make no network calls, and the decision page loads nothing from the internet. Your decisions are saved only in your browser.
 - **Screenshots** open only the address being reviewed, in a separate Chrome profile: a temporary one that's deleted after each shot, or the saved sign-in profile above.
-- **Small and readable.** Two scripts, about 600 lines in total, no dependencies to install.
+- **Small and readable.** No dependencies to install, and every script is plain, readable code.
 - **You see every command.** Claude Code asks before it runs anything, unless you've told it not to.
 
 ## What's inside
@@ -89,6 +107,9 @@ That window uses a separate Chrome profile that belongs only to this tool, store
 | `build.py` | Turns `findings.json` into the page, and explains what's wrong if the JSON isn't right |
 | `shoot.mjs` | Screenshots one element of a page, as it is or with proposed CSS applied, signed in if needed |
 | `example/` | A ready example to build and open |
+| `live-edit/SKILL.md` | Instructions for Claude: when to open the editor, how to read `edits.json` and build it into the code |
+| `live-edit/edit.mjs` | Opens the page in Chrome with the editor, waits for **Send to Claude**, writes `edits.json` and screenshots |
+| `live-edit/editor.js` | The editor itself: layers, design panel, drag, resize, text editing, undo |
 
 ## What's in a card
 

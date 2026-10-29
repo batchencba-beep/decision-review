@@ -9,7 +9,7 @@
     {
       "name": "decision-review",
       "source": "./",
-      "description": "Turns design review findings into a one-page decision board you approve, reject or discuss, then copy back to Claude as a prompt."
+      "description": "Turns design review findings into a one-page decision board, and opens any page in a Figma-style editor whose changes go back to Claude as exact edits."
     }
   ]
 }
