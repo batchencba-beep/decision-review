@@ -84,6 +84,9 @@ if (!chromePath) {
   process.exit(1);
 }
 
+// Chrome refuses to start as root without --no-sandbox (containers, CI).
+const ROOT_FLAGS = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
+
 function profileInUse() {
   // Chrome marks a profile in use with a SingletonLock link pointing at "host-PID".
   // A crash can leave it behind, so check that the process is really alive.
@@ -108,7 +111,7 @@ if (loginUrl) {
   }
   console.log(`Opening ${loginUrl} in a separate Chrome window.`);
   console.log('Sign in there, then quit that window (Cmd+Q on Mac, or close it on Windows/Linux).');
-  const win = spawn(chromePath, [`--user-data-dir=${PROFILE_DIR}`, '--no-first-run', '--no-default-browser-check', '--new-window', loginUrl], { stdio: 'ignore' });
+  const win = spawn(chromePath, [...ROOT_FLAGS, `--user-data-dir=${PROFILE_DIR}`, '--no-first-run', '--no-default-browser-check', '--new-window', loginUrl], { stdio: 'ignore' });
   const timer = setTimeout(() => { console.error('Still open after 15 minutes, stopping. Run --login again when ready.'); win.kill(); process.exit(1); }, 15 * 60 * 1000);
   win.on('exit', () => { clearTimeout(timer); console.log(`Saved. Add --logged-in to shoot pages as the signed-in user. Session stored in ${PROFILE_DIR}`); process.exit(0); });
   await new Promise(() => {});
@@ -154,6 +157,7 @@ if (loggedIn && profileInUse()) {
 const profile = loggedIn ? PROFILE_DIR : mkdtempSync(join(tmpdir(), 'shoot-'));
 const port = 9300 + Math.floor(Math.random() * 600);
 const chrome = spawn(chromePath, [
+  ...ROOT_FLAGS,
   '--headless=new', '--disable-gpu', '--hide-scrollbars', '--allow-file-access-from-files',
   `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, 'about:blank',
 ], { stdio: 'ignore' });
