@@ -42,7 +42,8 @@ textarea{width:100%;min-height:42vh;resize:vertical;background:var(--panel);colo
 
 /* ---------- stage ---------- */
 #stage{position:fixed;inset:0;background:#000;overflow:hidden}
-#cam{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+#cam{position:absolute;top:0;left:0;width:2px;height:2px;opacity:0;pointer-events:none}
+#view{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;transform:scaleX(-1)}
 #prompter{position:absolute;top:0;left:0;right:0;height:var(--ph,42%);padding-top:env(safe-area-inset-top);
   background:linear-gradient(to bottom,rgba(0,0,0,.78) 0%,rgba(0,0,0,.62) 75%,rgba(0,0,0,0) 100%);overflow:hidden}
 #mask{position:absolute;inset:env(safe-area-inset-top) 0 0 0;overflow:hidden;
@@ -127,6 +128,7 @@ textarea{width:100%;min-height:42vh;resize:vertical;background:var(--panel);colo
 <!-- STAGE -->
 <section id="stage" hidden>
   <video id="cam" playsinline autoplay muted></video>
+  <canvas id="view" width="1080" height="1920"></canvas>
   <div id="prompter">
     <div id="mask"><div id="script"></div></div>
     <span id="guide"></span>
@@ -344,21 +346,43 @@ async function openCamera(){
   if (!navigator.mediaDevices?.getUserMedia){ showErr('הדפדפן לא מאפשר גישה למצלמה. פתחי את הקישור בספארי.'); return; }
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 1080 }, height: { ideal: 1920 }, frameRate: { ideal: 30 } },
+      video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
       audio: { echoCancellation: true, noiseSuppression: true }
     });
   } catch (e) {
     showErr('לא הצלחתי לפתוח מצלמה ומיקרופון. בדקי שאישרת גישה (הגדרות ← ספארי ← מצלמה/מיקרופון).'); return;
   }
   $('cam').srcObject = stream;
+  try { await $('cam').play(); } catch {}
+  startDraw();
   $('setup').hidden = true; $('stage').hidden = false;
   buildScript();
   try { wake = await navigator.wakeLock?.request('screen'); } catch {}
   if (S.mode === 'voice') startVoice(); // listen during rehearsal too
 }
+// Every frame goes through a fixed 9:16 canvas, so the recording is always vertical
+const OUT_W = 1080, OUT_H = 1920;
+const view = $('view'), vctx = view.getContext('2d');
+let drawing = false;
+function startDraw(){
+  if (drawing) return; drawing = true;
+  const cam = $('cam');
+  const frame = () => {
+    if (!drawing) return;
+    const vw = cam.videoWidth, vh = cam.videoHeight;
+    if (vw && vh){
+      const sc = Math.max(OUT_W / vw, OUT_H / vh);
+      const dw = vw * sc, dh = vh * sc;
+      vctx.drawImage(cam, (OUT_W - dw) / 2, (OUT_H - dh) / 2, dw, dh);
+    }
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
 function showErr(m){ $('setupErr').textContent = m; $('setupErr').hidden = false; }
 function closeCamera(){
   stopVoice(); stopRecording(true);
+  drawing = false;
   stream?.getTracks().forEach(t => t.stop()); stream = null;
   try { wake?.release(); } catch {}
   $('stage').hidden = true; $('setup').hidden = false;
@@ -380,8 +404,9 @@ async function startRecording(){
   await countdown();
   const mime = pickMime();
   chunks = [];
-  try { recorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 8_000_000 } : undefined); }
-  catch { recorder = new MediaRecorder(stream); }
+  const out = new MediaStream([...view.captureStream(30).getVideoTracks(), ...stream.getAudioTracks()]);
+  try { recorder = new MediaRecorder(out, mime ? { mimeType: mime, videoBitsPerSecond: 8_000_000 } : undefined); }
+  catch { recorder = new MediaRecorder(out); }
   recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
   recorder.onstop = () => {
     if (recorder._discard) return;
