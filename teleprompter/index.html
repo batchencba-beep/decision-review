@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0d0f12">
+<title>טלפרומפטר לריל</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap">
+<style>
+/* Camera-first layout: full-bleed preview, script band near the lens, controls on the bottom edge */
+:root{
+  --bg:#0d0f12; --panel:#171a1f; --line:#2a2f37; --fg:#f3f1ec; --muted:#9aa0a8;
+  --accent:#ffcf4a; --rec:#ff3b45; --read:#6d737c;
+  --font:"Heebo",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:var(--font)}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;border:0;cursor:pointer}
+button:focus-visible,textarea:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- setup ---------- */
+#setup{min-height:100%;padding:calc(env(safe-area-inset-top) + 20px) max(16px,env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 24px) max(16px,env(safe-area-inset-left));display:flex;flex-direction:column;gap:18px;max-width:640px;margin:0 auto}
+h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.01em}
+.sub{margin:-10px 0 0;color:var(--muted);font-size:15px}
+textarea{width:100%;min-height:42vh;resize:vertical;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:14px;padding:14px;font:inherit;font-size:18px;line-height:1.6}
+.meta{color:var(--muted);font-size:13px;margin-top:6px}
+.group{display:flex;flex-direction:column;gap:10px}
+.lbl{font-size:13px;color:var(--muted);letter-spacing:.04em}
+.seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+.seg button{flex:1;padding:10px 8px;border-radius:9px;background:transparent;color:var(--muted);font-weight:600;font-size:15px}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.row{display:flex;align-items:center;gap:12px}
+.row input[type=range]{flex:1;accent-color:var(--accent)}
+.row output{min-width:44px;text-align:center;font-variant-numeric:tabular-nums;color:var(--fg)}
+.hint{font-size:13px;color:var(--muted);line-height:1.5;margin:0}
+.primary{background:var(--accent);color:#1a1400;font-weight:800;font-size:18px;padding:16px;border-radius:14px}
+.err{color:#ff8a8f;font-size:14px;margin:0}
+
+/* ---------- stage ---------- */
+#stage{position:fixed;inset:0;background:#000;overflow:hidden}
+#cam{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+#prompter{position:absolute;top:0;left:0;right:0;height:var(--ph,42%);padding-top:env(safe-area-inset-top);
+  background:linear-gradient(to bottom,rgba(0,0,0,.78) 0%,rgba(0,0,0,.62) 75%,rgba(0,0,0,0) 100%);overflow:hidden}
+#mask{position:absolute;inset:env(safe-area-inset-top) 0 0 0;overflow:hidden;
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 12%,#000 78%,transparent 100%);
+          mask-image:linear-gradient(to bottom,transparent 0,#000 12%,#000 78%,transparent 100%)}
+#script{position:absolute;left:0;right:0;top:0;padding:0 max(22px,env(safe-area-inset-left)) 60vh;
+  font-size:var(--fs,34px);line-height:1.38;font-weight:600;text-shadow:0 1px 3px rgba(0,0,0,.6);will-change:transform;white-space:pre-wrap}
+#script .w{transition:color .2s}
+#script .w.done{color:var(--read)}
+#script .w.now{color:var(--accent)}
+#guide{position:absolute;right:6px;width:8px;height:8px;border-radius:50%;background:var(--accent);top:calc(env(safe-area-inset-top) + var(--anchor,30%))}
+
+.top{position:absolute;top:calc(env(safe-area-inset-top) + 8px);left:max(10px,env(safe-area-inset-left));display:flex;gap:8px;z-index:3}
+.chip{background:rgba(0,0,0,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:7px 11px;border-radius:999px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+.chip .dot{width:8px;height:8px;border-radius:50%;background:var(--rec)}
+#timer{font-variant-numeric:tabular-nums}
+#voiceChip .dot{background:#4ade80}
+
+.bottom{position:absolute;left:0;right:0;bottom:0;padding:16px max(16px,env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 18px) max(16px,env(safe-area-inset-left));
+  display:flex;align-items:center;justify-content:space-between;gap:10px;background:linear-gradient(to top,rgba(0,0,0,.6),rgba(0,0,0,0));z-index:3}
+.round{width:52px;height:52px;border-radius:50%;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-size:13px;font-weight:700;display:grid;place-items:center}
+.side{display:flex;gap:10px;align-items:center}
+#recBtn{width:78px;height:78px;border-radius:50%;background:transparent;border:5px solid #fff;display:grid;place-items:center;flex:none}
+#recBtn i{display:block;width:58px;height:58px;border-radius:50%;background:var(--rec);transition:all .2s}
+#recBtn.on i{width:30px;height:30px;border-radius:7px}
+#countdown{position:absolute;inset:0;display:grid;place-items:center;font-size:120px;font-weight:800;text-shadow:0 4px 30px rgba(0,0,0,.6);pointer-events:none;z-index:4}
+#toast{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 120px);background:rgba(20,20,20,.9);padding:10px 14px;border-radius:12px;font-size:14px;max-width:calc(100% - 32px);text-align:center;z-index:5}
+
+/* ---------- review ---------- */
+#review{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;gap:14px;
+  padding:calc(env(safe-area-inset-top) + 14px) max(16px,env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 18px) max(16px,env(safe-area-inset-left));z-index:10}
+#review video{flex:1;min-height:0;width:100%;background:#000;border-radius:14px;object-fit:contain}
+.actions{display:flex;gap:10px}
+.actions button{flex:1;padding:15px;border-radius:14px;font-weight:700;font-size:16px}
+.ghost{background:var(--panel);border:1px solid var(--line)!important}
+@media (prefers-reduced-motion:reduce){#script .w,#recBtn i{transition:none}}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<main id="setup">
+  <h1>טלפרומפטר לריל</h1>
+  <p class="sub">מדביקים טקסט, פותחים מצלמה, מצלמים. הטקסט רץ ליד העדשה.</p>
+
+  <div>
+    <textarea id="text" placeholder="הדביקי כאן את הטקסט של הריל…"></textarea>
+    <div class="meta" id="meta"></div>
+  </div>
+
+  <div class="group">
+    <span class="lbl">איך הטקסט מתקדם</span>
+    <div class="seg" id="modeSeg">
+      <button id="modeVoice" data-mode="voice" aria-pressed="true">עוקב אחרי הקול</button>
+      <button id="modeAuto" data-mode="auto" aria-pressed="false">מהירות קבועה</button>
+    </div>
+    <p class="hint" id="modeHint"></p>
+  </div>
+
+  <div class="group">
+    <span class="lbl">גודל טקסט</span>
+    <div class="row"><input id="fs" type="range" min="22" max="56" step="1" value="34"><output id="fsOut">34</output></div>
+  </div>
+
+  <div class="group" id="speedGroup">
+    <span class="lbl">מהירות גלילה (מילים לדקה)</span>
+    <div class="row"><input id="wpm" type="range" min="80" max="220" step="5" value="140"><output id="wpmOut">140</output></div>
+  </div>
+
+  <div class="group">
+    <span class="lbl">שפת הדיבור</span>
+    <div class="seg" id="langSeg">
+      <button data-lang="he-IL" aria-pressed="true">עברית</button>
+      <button data-lang="en-US" aria-pressed="false">English</button>
+    </div>
+  </div>
+
+  <p class="err" id="setupErr" hidden></p>
+  <button class="primary" id="openCam">פתיחת מצלמה</button>
+</main>
+
+<!-- STAGE -->
+<section id="stage" hidden>
+  <video id="cam" playsinline autoplay muted></video>
+  <div id="prompter">
+    <div id="mask"><div id="script"></div></div>
+    <span id="guide"></span>
+  </div>
+  <div class="top">
+    <span class="chip" id="recChip" hidden><span class="dot"></span><span id="timer">0:00</span></span>
+    <span class="chip" id="voiceChip" hidden><span class="dot"></span>מקשיבה</span>
+  </div>
+  <div id="countdown" hidden></div>
+  <div id="toast" hidden></div>
+  <div class="bottom">
+    <div class="side">
+      <button class="round" id="backBtn" aria-label="חזרה לעריכה">עריכה</button>
+      <button class="round" id="restartBtn" aria-label="לתחילת הטקסט">מהתחלה</button>
+    </div>
+    <button id="recBtn" aria-label="הקלטה"><i></i></button>
+    <div class="side">
+      <button class="round" id="slowBtn" aria-label="לאט יותר">−</button>
+      <button class="round" id="fastBtn" aria-label="מהר יותר">+</button>
+    </div>
+  </div>
+</section>
+
+<!-- REVIEW -->
+<section id="review" hidden>
+  <video id="playback" playsinline controls></video>
+  <div class="actions">
+    <button class="ghost" id="retake">צילום חוזר</button>
+    <button class="primary" id="save">שמירה</button>
+  </div>
+  <p class="hint" style="text-align:center">באייפון: שמירה ← "שמירת וידאו" כדי שיגיע לתמונות.</p>
+</section>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try { const v = localStorage.getItem('tp_' + k); return v === null ? d : v; } catch { return d; } },
+  set(k, v){ try { localStorage.setItem('tp_' + k, v); } catch {} }
+};
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+// ---------- settings ----------
+const S = {
+  text: store.get('text', ''),
+  mode: store.get('mode', SR ? 'voice' : 'auto'),
+  fs: +store.get('fs', 34),
+  wpm: +store.get('wpm', 140),
+  lang: store.get('lang', 'he-IL')
+};
+if (!SR) S.mode = 'auto';
+
+const ta = $('text');
+ta.value = S.text;
+$('fs').value = S.fs; $('fsOut').textContent = S.fs;
+$('wpm').value = S.wpm; $('wpmOut').textContent = S.wpm;
+
+function updateMeta(){
+  const n = ta.value.trim() ? ta.value.trim().split(/\s+/).length : 0;
+  const secs = Math.round(n / S.wpm * 60);
+  $('meta').textContent = n ? `${n} מילים · בערך ${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')} דקות בקצב ${S.wpm}` : '';
+}
+function setSeg(segId, attr, val){
+  document.querySelectorAll(`#${segId} button`).forEach(b => b.setAttribute('aria-pressed', b.dataset[attr] === val));
+}
+function renderMode(){
+  setSeg('modeSeg', 'mode', S.mode);
+  $('speedGroup').hidden = S.mode !== 'auto';
+  $('modeHint').textContent = !SR
+    ? 'הדפדפן הזה לא תומך בזיהוי דיבור, אז הטקסט ירוץ במהירות קבועה.'
+    : S.mode === 'voice'
+      ? 'הטקסט מתקדם לפי מה שאת אומרת. אם קופצים או מאלתרים, הוא ממתין עד שתחזרי לטקסט.'
+      : 'הטקסט גולל במהירות קבועה. נגיעה בטקסט עוצרת וממשיכה.';
+  if (!SR) $('modeVoice').disabled = true;
+}
+renderMode(); setSeg('langSeg', 'lang', S.lang); updateMeta();
+
+ta.addEventListener('input', () => { store.set('text', ta.value); updateMeta(); });
+$('modeSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled) return; S.mode = b.dataset.mode; store.set('mode', S.mode); renderMode(); });
+$('langSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.lang = b.dataset.lang; store.set('lang', S.lang); setSeg('langSeg', 'lang', S.lang); });
+$('fs').addEventListener('input', e => { S.fs = +e.target.value; $('fsOut').textContent = S.fs; store.set('fs', S.fs); applyFont(); });
+$('wpm').addEventListener('input', e => { S.wpm = +e.target.value; $('wpmOut').textContent = S.wpm; store.set('wpm', S.wpm); updateMeta(); });
+
+// ---------- script rendering ----------
+const NIQQUD = /[֑-ׇ]/g;
+const FINALS = { 'ך':'כ','ם':'מ','ן':'נ','ף':'פ','ץ':'צ' };
+const PREFIX = /^[והבלמשכ]/;
+function norm(w){
+  return w.normalize('NFC').replace(NIQQUD, '').toLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu, '').replace(/[ךםןףץ]/g, c => FINALS[c]);
+}
+function lev1(a, b){ // true if edit distance <= 1
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0, j = 0, diff = 0;
+  while (i < a.length && j < b.length){
+    if (a[i] === b[j]){ i++; j++; continue; }
+    if (++diff > 1) return false;
+    if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+  }
+  return diff + (a.length - i) + (b.length - j) <= 1;
+}
+function same(a, b){
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const a2 = PREFIX.test(a) && a.length > 2 ? a.slice(1) : a;
+  const b2 = PREFIX.test(b) && b.length > 2 ? b.slice(1) : b;
+  if (a2 === b || a === b2 || a2 === b2) return true;
+  return Math.min(a.length, b.length) >= 4 && lev1(a, b);
+}
+
+let words = [], spans = [], ptr = 0;
+function buildScript(){
+  const el = $('script'); el.textContent = '';
+  words = []; spans = [];
+  ta.value.split(/(\s+)/).forEach(tok => {
+    if (!tok) return;
+    if (/^\s+$/.test(tok)){ el.appendChild(document.createTextNode(tok)); return; }
+    const s = document.createElement('span');
+    s.className = 'w'; s.textContent = tok;
+    el.appendChild(s);
+    spans.push(s); words.push(norm(tok));
+  });
+  ptr = 0; offset = 0; target = 0; paint(); place(true);
+}
+function applyFont(){ document.documentElement.style.setProperty('--fs', S.fs + 'px'); }
+applyFont();
+
+// ---------- scrolling ----------
+let offset = 0, target = 0, running = false, paused = false, lastT = 0;
+const ANCHOR = 0.30; // reading line, fraction of prompter height
+document.documentElement.style.setProperty('--anchor', (ANCHOR * 100) + '%');
+
+function lineTop(i){ const s = spans[Math.min(i, spans.length - 1)]; return s ? s.offsetTop : 0; }
+function place(snap){
+  if (S.mode === 'voice' || snap){
+    const h = $('mask').clientHeight;
+    target = Math.max(0, lineTop(ptr) - h * ANCHOR);
+    if (snap) offset = target;
+  }
+}
+function paint(){
+  for (let i = 0; i < spans.length; i++){
+    spans[i].classList.toggle('done', i < ptr);
+    spans[i].classList.toggle('now', i === ptr);
+  }
+}
+let lastPaintPtr = -1;
+function tick(t){
+  const dt = Math.min(0.1, (t - (lastT || t)) / 1000); lastT = t;
+  if (running && !paused && S.mode === 'auto'){
+    // px/sec from words per minute, measured against the real text layout
+    const total = spans.length ? lineTop(spans.length - 1) : 0;
+    const pxPerWord = spans.length ? total / spans.length : 0;
+    offset += pxPerWord * S.wpm / 60 * dt;
+    // keep the highlight in sync with the scroll
+    const y = offset + $('mask').clientHeight * ANCHOR;
+    while (ptr < spans.length - 1 && spans[ptr + 1].offsetTop <= y) ptr++;
+  } else if (S.mode === 'voice'){
+    offset += (target - offset) * Math.min(1, dt * 6);
+  }
+  if (ptr !== lastPaintPtr){ paint(); lastPaintPtr = ptr; }
+  $('script').style.transform = `translateY(${-offset}px)`;
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+// ---------- voice follow ----------
+let rec = null, listening = false;
+function onSpoken(spokenRaw){
+  const sp = spokenRaw.split(/\s+/).map(norm).filter(Boolean).slice(-5);
+  if (!sp.length) return;
+  let best = -1, bestScore = 0;
+  const lo = Math.max(0, ptr - 3), hi = Math.min(words.length - 1, ptr + 30);
+  for (let i = lo; i <= hi; i++){
+    // count how many of the last spoken words line up ending at text word i
+    let score = 0;
+    for (let k = 0; k < sp.length && i - k >= 0; k++){
+      if (same(sp[sp.length - 1 - k], words[i - k])) score++;
+      else if (k === 0) break;
+    }
+    if (!score) continue;
+    const jump = i - ptr;
+    const need = jump > 6 ? 2 : 1;           // far jumps need two words in a row
+    if (score < need) continue;
+    if (score === 1 && sp[sp.length - 1].length < 3 && jump > 2) continue; // short common words
+    if (score > bestScore || (score === bestScore && Math.abs(jump) < Math.abs(best - ptr))){ best = i; bestScore = score; }
+  }
+  if (best >= 0 && best + 1 > ptr){ ptr = Math.min(words.length - 1, best + 1); place(); }
+}
+function startVoice(){
+  if (!SR || listening) return;
+  listening = true;
+  const r = rec = new SR();
+  rec.lang = S.lang; rec.continuous = true; rec.interimResults = true;
+  rec.onresult = e => {
+    let txt = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) txt += ' ' + e.results[i][0].transcript;
+    onSpoken(txt);
+  };
+  rec.onerror = e => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+      toast('אין הרשאה לזיהוי דיבור. עברתי לגלילה במהירות קבועה.'); listening = false; S.mode = 'auto'; renderMode();
+    }
+  };
+  rec.onend = () => { if (r !== rec) return; if (listening) { try { r.start(); } catch {} } else $('voiceChip').hidden = true; };
+  try { rec.start(); $('voiceChip').hidden = false; } catch { listening = false; }
+}
+function stopVoice(){ listening = false; $('voiceChip').hidden = true; try { rec && rec.stop(); } catch {} }
+
+// ---------- camera ----------
+let stream = null, recorder = null, chunks = [], recBlob = null, timerId = 0, t0 = 0, wake = null;
+async function openCamera(){
+  $('setupErr').hidden = true;
+  if (!ta.value.trim()){ showErr('צריך להדביק טקסט קודם.'); return; }
+  if (!navigator.mediaDevices?.getUserMedia){ showErr('הדפדפן לא מאפשר גישה למצלמה. פתחי את הקישור בספארי.'); return; }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1080 }, height: { ideal: 1920 }, frameRate: { ideal: 30 } },
+      audio: { echoCancellation: true, noiseSuppression: true }
+    });
+  } catch (e) {
+    showErr('לא הצלחתי לפתוח מצלמה ומיקרופון. בדקי שאישרת גישה (הגדרות ← ספארי ← מצלמה/מיקרופון).'); return;
+  }
+  $('cam').srcObject = stream;
+  $('setup').hidden = true; $('stage').hidden = false;
+  buildScript();
+  try { wake = await navigator.wakeLock?.request('screen'); } catch {}
+  if (S.mode === 'voice') startVoice(); // listen during rehearsal too
+}
+function showErr(m){ $('setupErr').textContent = m; $('setupErr').hidden = false; }
+function closeCamera(){
+  stopVoice(); stopRecording(true);
+  stream?.getTracks().forEach(t => t.stop()); stream = null;
+  try { wake?.release(); } catch {}
+  $('stage').hidden = true; $('setup').hidden = false;
+}
+
+function pickMime(){
+  const opts = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'];
+  return opts.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported?.(m)) || '';
+}
+async function countdown(){
+  const el = $('countdown'); el.hidden = false;
+  for (const n of [3, 2, 1]){ el.textContent = n; await new Promise(r => setTimeout(r, 800)); }
+  el.hidden = true;
+}
+async function startRecording(){
+  if (!window.MediaRecorder){ toast('הדפדפן הזה לא תומך בהקלטה.'); return; }
+  $('recBtn').disabled = true;
+  ptr = 0; place(true); paint();
+  await countdown();
+  const mime = pickMime();
+  chunks = [];
+  try { recorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 8_000_000 } : undefined); }
+  catch { recorder = new MediaRecorder(stream); }
+  recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
+  recorder.onstop = () => {
+    if (recorder._discard) return;
+    recBlob = new Blob(chunks, { type: recorder.mimeType || mime || 'video/mp4' });
+    $('playback').src = URL.createObjectURL(recBlob);
+    $('review').hidden = false;
+  };
+  recorder.start(1000);
+  running = true; paused = false;
+  $('recBtn').classList.add('on'); $('recBtn').disabled = false;
+  $('recChip').hidden = false; t0 = Date.now();
+  timerId = setInterval(() => { const s = Math.floor((Date.now() - t0) / 1000); $('timer').textContent = `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }, 250);
+  if (S.mode === 'voice') startVoice();
+  // if the system takes the mic away from the recording, say so
+  stream.getAudioTracks().forEach(t => t.onended = () => toast('המיקרופון של ההקלטה נעצר. עברי ל"מהירות קבועה" וצלמי שוב.'));
+}
+function stopRecording(discard){
+  running = false;
+  clearInterval(timerId); $('recChip').hidden = true; $('timer').textContent = '0:00';
+  $('recBtn').classList.remove('on');
+  if (recorder && recorder.state !== 'inactive'){ recorder._discard = !!discard; recorder.stop(); }
+}
+
+let toastId = 0;
+function toast(m){ const el = $('toast'); el.textContent = m; el.hidden = false; clearTimeout(toastId); toastId = setTimeout(() => el.hidden = true, 4000); }
+
+// ---------- controls ----------
+$('openCam').addEventListener('click', openCamera);
+$('backBtn').addEventListener('click', closeCamera);
+$('recBtn').addEventListener('click', () => (recorder && recorder.state === 'recording') ? stopRecording(false) : startRecording());
+$('restartBtn').addEventListener('click', () => { ptr = 0; place(true); paint(); });
+$('prompter').addEventListener('click', () => {
+  if (S.mode !== 'auto') return;
+  if (!running){ running = true; paused = false; toast('גלילה פועלת. נגיעה עוצרת.'); return; }
+  paused = !paused; toast(paused ? 'הגלילה נעצרה' : 'ממשיכים');
+});
+function nudge(d){
+  if (S.mode === 'auto'){ S.wpm = Math.max(60, Math.min(260, S.wpm + d * 10)); store.set('wpm', S.wpm); $('wpm').value = S.wpm; $('wpmOut').textContent = S.wpm; toast(`מהירות: ${S.wpm} מילים לדקה`); }
+  else { ptr = Math.max(0, Math.min(words.length - 1, ptr + d * 3)); place(); }
+}
+$('slowBtn').addEventListener('click', () => nudge(-1));
+$('fastBtn').addEventListener('click', () => nudge(1));
+window.addEventListener('resize', () => place(true));
+
+$('retake').addEventListener('click', () => { $('review').hidden = true; URL.revokeObjectURL($('playback').src); $('playback').removeAttribute('src'); ptr = 0; place(true); paint(); });
+$('save').addEventListener('click', async () => {
+  if (!recBlob) return;
+  const ext = recBlob.type.includes('mp4') ? 'mp4' : 'webm';
+  const name = `reel-${new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')}.${ext}`;
+  const file = new File([recBlob], name, { type: recBlob.type });
+  if (navigator.canShare?.({ files: [file] })){
+    try { await navigator.share({ files: [file] }); return; } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(recBlob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+});
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && stream) { try { wake = await navigator.wakeLock?.request('screen'); } catch {} }
+});
+})();
+</script>
+</body>
+</html>
