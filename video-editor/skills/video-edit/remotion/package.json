@@ -1,0 +1,20 @@
+{
+  "name": "video-edit-captions",
+  "private": true,
+  "description": "Transparent caption layer for the video-edit skill (rendered as ProRes 4444 with alpha).",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts Captions"
+  },
+  "dependencies": {
+    "@fontsource/heebo": "5.3.0",
+    "@remotion/cli": "4.0.538",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.538"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.2",
+    "typescript": "5.9.3"
+  }
+}

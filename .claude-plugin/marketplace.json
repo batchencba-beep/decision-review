@@ -1,6 +1,6 @@
 {
   "name": "batchenba",
-  "description": "Design tools for working with Claude, by Bat Chen Ben Arza.",
+  "description": "Design and content tools for working with Claude, by Bat Chen Ben Arza.",
   "owner": {
     "name": "Bat Chen Ben Arza",
     "url": "https://batchenba.com"
@@ -10,6 +10,11 @@
       "name": "decision-review",
       "source": "./",
       "description": "Turns design review findings into a one-page decision board you approve, reject or discuss, then copy back to Claude as a prompt."
+    },
+    {
+      "name": "video-editor",
+      "source": "./video-editor",
+      "description": "A short-form video editor agent: takes, pacing, frame-accurate cuts, animated Hebrew/RTL captions, AI-clip cutaways, platform exports, self-QA and revisions."
     }
   ]
 }
