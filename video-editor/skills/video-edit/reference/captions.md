@@ -2,6 +2,22 @@
 
 Animated, word-by-word, rendered by Remotion as a transparent layer over the picture.
 
+## Presets (brief `style.captions`)
+
+| | `bold` | `quiet` |
+|---|---|---|
+| Size | 0.074 × width | 0.052 × width |
+| Weight | 800 | 500 |
+| Outline | brand stroke | none |
+| Shadow | strong | soft, wide |
+| Active word | brand highlight colour, slight scale | upcoming words dimmed to 55%, spoken words full |
+| Entrance | pop (spring) | 4-frame fade |
+| Words / chars per chunk | 3 / 16 | 4 / 22 |
+| Position | 0.64 | 0.70 |
+
+`quiet` is for a calm, designed look: no "template" graphics. Any field can still be overridden in
+`edl.captions.style`.
+
 ## Rules (enforced by captions.py, checked by QA)
 
 | Rule | Value | Why |

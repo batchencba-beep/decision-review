@@ -40,7 +40,8 @@ def caption_props(edl: dict, fps: int, total_frames: int) -> dict:
     style = {"font": st.get("font", "Heebo"), "weight": int(st.get("font_weight", 800)),
              "size": float(st.get("size", 0.074)), "color": st.get("color", "#FFFFFF"),
              "highlight": st.get("highlight", "#FFD60A"), "stroke": st.get("stroke", "#000000"),
-             "positionY": float(st.get("position_y", 0.64)), "animation": st.get("animation", "pop")}
+             "positionY": float(st.get("position_y", 0.64)), "animation": st.get("animation", "pop"),
+             "highlightMode": st.get("highlight_mode", "color"), "shadow": st.get("shadow", "strong")}
     if st.get("font_file"):
         style["fontFile"] = Path(st["font_file"]).name
     return {"width": edl["canvas"]["width"], "height": edl["canvas"]["height"], "fps": fps,

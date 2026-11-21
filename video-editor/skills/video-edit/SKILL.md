@@ -35,7 +35,12 @@ and Remotion (~250 MB). On macOS install ffmpeg with Homebrew first.
 ## The job folder
 
 Each reel is one folder: `brief.json` + `assets/` (originals, never modified). Everything else is
-created by the scripts. The brief format is in [reference/brief.md](reference/brief.md). If the brief is
+created by the scripts. The brief format is in [reference/brief.md](reference/brief.md). If you are
+given a hand-off package (brief JSON pasted in a message) instead of a file, write `brief.json` from it
+and match the asset paths to the files in `assets/`.
+
+**The brief's `style` is binding.** `style.zoom: false` means no punch-ins at all. `style.captions`
+picks the caption look. `style.notes` is the creator's own direction — follow it over any default here. If the brief is
 missing something required or contradicts the footage, ask **one** concise question before editing.
 
 ## Pipeline
@@ -58,6 +63,10 @@ caption chunks. `revise.py <job>` starts the next version.
 
 `autocut.py` applies rules. You apply judgment. Open `analysis.json` next to the new `edl.json` and decide:
 
+- **Script mode.** `verbatim` matches takes against the script lines. `points` (the speaker talks
+  freely around talking points) finds takes by repetition: an earlier, partial or restarted sentence
+  is replaced by the later one. Check every `off_point` sentence (keep it only if it earns its place)
+  and every `missing_point` (tell the user the point is not in the footage).
 - **Takes.** autocut prefers the highest-scoring take and, on near-ties, the *last* one (usually the
   keeper). Overrule it when another take has fewer pauses, better energy (higher `wps`), or the chosen
   one has `extended: true` and looks suspicious. A take is a word range: copy its `start`/`end` into
@@ -77,8 +86,9 @@ caption chunks. `revise.py <job>` starts the next version.
 - **Cutaways.** autocut anchors each AI clip to its `beat_ref` beats. Adjust `trim_start`/`trim_end`,
   or give an explicit `at`/`duration`. Cover cuts in the talking head with a cutaway when a jump cut
   would jar.
-- **Punch-ins.** `zoom` 1.1–1.25 on alternate segments hides jump cuts on a 4K source. The validator
-  refuses zooms that drop below 1080 source pixels.
+- **Punch-ins.** Only when `style.zoom` is true: `zoom` 1.1–1.25 on alternate segments hides jump cuts
+  on a 4K source. The validator refuses zooms that drop below 1080 source pixels. With zooms off,
+  hide a jarring jump cut with a cutaway, or move the cut to a natural pause.
 
 Every segment and cutaway carries a short `reason`. Write one for every change you make. The full EDL
 format and editing recipes are in [reference/edl.md](reference/edl.md).

@@ -64,7 +64,7 @@ See [captions.md](captions.md).
 | "Highlight the word X" | `captions.emphasis: ["X"]`. |
 | "No captions" | `captions.enabled: false`. |
 | "Show the AI clip earlier / longer" | Adjust `trim_start` / `trim_end`, or switch to explicit `at` / `duration`. |
-| "Jump cut at 0:08 is jarring" | Add `zoom: 1.15–1.25` to the segment after the cut, or cover the cut with a cutaway. |
+| "Jump cut at 0:08 is jarring" | Cover the cut with a cutaway, or move it to a natural pause. Only if `style.zoom` is true: `zoom: 1.15–1.25` on the segment after the cut. |
 | "Too zoomed / cropped" | `zoom: 1.0`, or move `anchor`. |
 
 After any edit: `validate_edl.py <job> <v> --snap` to see the new timeline, then `build.py <job> <v>`.

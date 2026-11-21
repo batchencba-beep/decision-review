@@ -158,6 +158,90 @@ def gaps(job: Job, words: list[dict]) -> list[dict]:
     return res
 
 
+STOP = {norm_word(x) for x in "את של על עם זה זו זאת הוא היא אני אתם אתן הם הן אנחנו לא כן גם רק כל מה מי אז כי אם או אבל יש אין היה הייתה להיות עוד כבר מאוד ממש פשוט the a an to of and or is are it this that".split()}
+
+
+def utterances(words: list[dict], pause: float = 0.6) -> list[list[dict]]:
+    """Split speech into sentences: at sentence punctuation or a pause > 0.6 s."""
+    res, cur = [], []
+    for w in words:
+        if cur and (w["asset"] != cur[-1]["asset"] or w["start"] - cur[-1]["end"] > pause):
+            res.append(cur)
+            cur = []
+        cur.append(w)
+        if w["text"].endswith(SENT_END):
+            res.append(cur)
+            cur = []
+    if cur:
+        res.append(cur)
+    return res
+
+
+def content(keys: list[str]) -> set[str]:
+    return {k for k in keys if k and k not in STOP and len(k) > 1}
+
+
+def points_beats(words: list[dict], points: list[dict]) -> tuple[list[dict], set[int]]:
+    """Free speech around talking points (no word-for-word script).
+
+    Takes are found by REPETITION, not by matching a script: when a sentence is said again within the
+    next three sentences (similar words, or a restart on the same first three words), the earlier one
+    is a discarded take and the later one is kept — the speaker usually repeats because the first try
+    was worse. Each kept sentence is tagged with the talking point it covers (content-word overlap),
+    which anchors cutaways and tells you which point is missing.
+    """
+    utts = utterances(words)
+    keys = [[w["key"] for w in u] for u in utts]
+    superseded = {}
+    for i in range(len(utts)):
+        for j in range(i + 1, min(len(utts), i + 4)):
+            sim = SequenceMatcher(None, keys[i], keys[j], autojunk=False).ratio()
+            # a partial try: (almost) every word of the earlier sentence reappears, in order, in the
+            # later one — a restart ("היום הוא היום הכי שמח" ... "היום הוא היום הכי שמח בחיים שלי")
+            # or a fragment Whisper split off ("בחיים שלי.")
+            matched = sum(b.size for b in SequenceMatcher(None, keys[i], keys[j], autojunk=False).get_matching_blocks())
+            partial = len(keys[i]) >= 2 and len(keys[i]) <= len(keys[j]) and matched / len(keys[i]) >= 0.8
+            if sim >= 0.6 or partial:
+                superseded[i] = j
+                break
+    pkeys = [content([norm_word(x) for x in tokenize(p["text"])]) for p in points]
+    out, used = [], set()
+    for i, u in enumerate(utts):
+        if i in superseded:
+            continue
+        ck = content(keys[i])
+        overlaps = [len(ck & pk) / max(1, min(len(ck), len(pk))) for pk in pkeys]
+        best = max(range(len(points)), key=lambda k: overlaps[k]) if points else None
+        point = best if best is not None and overlaps[best] >= 0.2 else None
+        aside = point is None and len(u) <= 3 and bool(points)
+        # all earlier takes of this sentence (follow the supersede chain backwards)
+        chain, k = [], i
+        while True:
+            prev = [a for a, b in superseded.items() if b == k]
+            if not prev:
+                break
+            k = prev[0]
+            chain.insert(0, k)
+        takes = []
+        for n, t_i in enumerate(chain + [i]):
+            tu = utts[t_i]
+            t = describe_take({"w0": tu[0]["g"], "w1": tu[-1]["g"], "score": 1.0}, words)
+            t["chosen"] = (t_i == i) and not aside
+            takes.append(t)
+            if t["chosen"]:
+                used.update(range(t["w0"], t["w1"] + 1))
+        kind = "aside" if aside else ("hook" if point == 0 and points and points[0]["kind"] == "hook" else
+                                     "cta" if point is not None and points[point]["kind"] == "cta" else
+                                     "off_point" if point is None and points else "sentence")
+        out.append({"index": len(out), "kind": kind, "beat": point,
+                    "text": " ".join(w["text"] for w in u), "takes": takes})
+    covered = {b["beat"] for b in out if b["beat"] is not None and b["kind"] != "aside"}
+    for k, p in enumerate(points):
+        if k not in covered:
+            out.append({"index": len(out), "kind": "missing_point", "beat": k, "text": p["text"], "takes": []})
+    return out, used
+
+
 def main():
     if len(sys.argv) != 2:
         raise SystemExit(__doc__)
@@ -166,12 +250,14 @@ def main():
     if not words:
         raise SystemExit("no words transcribed — check the a_roll audio")
     beats = script_beats(job.brief)
-    scripted = bool(beats)
-    if not scripted:
-        beats = [{"index": 0, "kind": "unscripted", "text": " ".join(w["text"] for w in words)}]
+    mode = job.brief["script"]["mode"] if beats else "points"
+    scripted = mode == "verbatim"
 
     out_beats, display, used = [], {}, set()
     used_elsewhere: set[int] = set()
+    if not scripted:
+        out_beats, used = points_beats(words, beats)
+        beats = []
     for b in beats:
         toks = tokenize(b["text"])
         if scripted:
@@ -191,7 +277,7 @@ def main():
                 used_elsewhere.add(g)
         if k is not None and scripted:
             display.update(display_text(toks, words[takes[k]["w0"]: takes[k]["w1"] + 1]))
-        out_beats.append({**{x: b[x] for x in ("index", "kind", "text")}, "takes": takes})
+        out_beats.append({**{x: b[x] for x in ("index", "kind", "text")}, "beat": b["index"], "takes": takes})
 
     unmatched, run_ = [], []
     for w in words:
@@ -206,6 +292,7 @@ def main():
 
     data = {
         "scripted": scripted,
+        "mode": mode,
         "words": [{"g": w["g"], "asset": w["asset"], "i": w["i"], "text": w["text"],
                    "display": display.get(w["g"], w["text"]), "start": w["start"], "end": w["end"],
                    "prob": w["prob"], "filler": is_filler(w["text"], hard_only=False),
@@ -217,16 +304,19 @@ def main():
     }
     save(job.analysis_path, data)
 
+    print(f"mode: {mode}" + ("" if scripted else " — takes found by repetition; sentences tagged with the talking point (p#)"))
     for b in out_beats:
-        print(f"[{b['index']}] {b['kind']}: {b['text'][:70]}")
+        tag = f" p{b['beat']}" if b.get("beat") is not None and not scripted else ""
+        print(f"[{b['index']}] {b['kind']}{tag}: {b['text'][:70]}")
         if not b["takes"]:
-            print("     !! NO TAKE FOUND — line missing from footage or badly misrecognised")
+            print("     !! NO TAKE FOUND — " + ("talking point not covered in the footage" if not scripted
+                                               else "line missing from footage or badly misrecognised"))
         for t in b["takes"]:
             mark = "★" if t["chosen"] else " "
             print(f"   {mark} {t['asset']} {tc(t['start'])}–{tc(t['end'])} score={t['score']:.2f} "
                   f"pauses={t['pauses']} fillers={t['fillers']} prob={t['prob']:.2f} | {t['text'][:60]}")
     if data["unmatched"]:
-        print("off-script speech (dropped by autocut unless you keep it):")
+        print("not used (off-script, discarded takes or asides — dropped unless you keep them):")
         for u in data["unmatched"]:
             print(f"   {u['asset']} {tc(u['start'])}–{tc(u['end'])}: {u['text'][:80]}")
     snd = [g for g in data["gaps"] if g["kind"] == "sound"]

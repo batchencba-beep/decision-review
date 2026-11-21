@@ -183,6 +183,9 @@ def validate(job: Job, edl: dict) -> tuple[list[str], list[str]]:
                     errors.append(f"{sid}.{key}={s[key]:.3f} cuts through the word '{w['text']}' "
                                   f"({w['start']:.2f}–{w['end']:.2f}) — run with --snap")
         z = float(s.get("zoom", 1.0))
+        if z > 1.0 and not job.brief["style"]["zoom"]:
+            errors.append(f"{sid}: zoom {z} — the brief says no zooms (movement comes from the speaker). "
+                          f"Hide jump cuts with a cutaway or a better cut point instead")
         if z < 1.0 or z > MAX_ZOOM:
             errors.append(f"{sid}: zoom {z} outside 1.0–{MAX_ZOOM}")
         if z > 1.0:
@@ -217,6 +220,7 @@ def validate(job: Job, edl: dict) -> tuple[list[str], list[str]]:
         warns.append(f"first word lands at {ws[0]['start'] - first['in']:.2f}s — should be ≤ 0.30s")
     spans = beat_spans(tl)
     hook = next((b for b in analysis.get("beats", []) if b["kind"] == "hook"), None)
-    if hook and hook["index"] in spans and spans[hook["index"]][1] > 3.0:
-        warns.append(f"hook ends at {spans[hook['index']][1]:.2f}s — must land by 3.0s")
+    hb = hook.get("beat", hook["index"]) if hook else None
+    if hook and hb in spans and spans[hb][1] > 3.0:
+        warns.append(f"hook ends at {spans[hb][1]:.2f}s — must land by 3.0s")
     return errors, warns
