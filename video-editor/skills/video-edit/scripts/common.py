@@ -144,6 +144,9 @@ def normalize_brief(b: dict) -> dict:
         "hook": script.get("hook", ""),
         "beats": [x if isinstance(x, dict) else {"text": x} for x in script.get("beats", [])],
         "cta": script.get("cta", ""),
+        # verbatim: the speaker reads the script word for word (takes are matched against it)
+        # points:   the speaker talks freely around talking points (takes are found by repetition)
+        "mode": script.get("mode", "verbatim"),
     }
     assets = []
     for i, a in enumerate(b.get("assets", [])):
@@ -166,6 +169,14 @@ def normalize_brief(b: dict) -> dict:
         "primary": br.get("primary", "#FFFFFF"),
         "highlight": br.get("highlight", "#FFD60A"),
         "stroke": br.get("stroke", "#000000"),
+        "font_file": br.get("font_file"),
+    }
+    st = b.get("style") or {}
+    b["style"] = {
+        "captions": st.get("captions", "bold"),   # bold | quiet | none
+        "zoom": bool(st.get("zoom", True)),        # false = never punch in (movement comes from the speaker)
+        "continuity": st.get("continuity", "single"),  # single = one camera setup for the whole reel | free
+        "notes": st.get("notes", ""),              # free-text editing direction for the editor
     }
     return b
 

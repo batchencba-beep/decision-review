@@ -35,7 +35,21 @@ and Remotion (~250 MB). On macOS install ffmpeg with Homebrew first.
 ## The job folder
 
 Each reel is one folder: `brief.json` + `assets/` (originals, never modified). Everything else is
-created by the scripts. The brief format is in [reference/brief.md](reference/brief.md). If the brief is
+created by the scripts. The brief format is in [reference/brief.md](reference/brief.md). If you are
+given a hand-off package (brief JSON pasted in a message) instead of a file, write `brief.json` from it
+and match the asset paths to the files in `assets/`.
+
+**One camera setup per reel.** A setup is one camera position and framing. Cutting between setups
+from sentence to sentence makes the speaker jump around the frame: it is the most visible amateur
+mistake. `analyze.py` detects setups from the picture (`work/setups/<A|B…>.jpg` — look at them), picks
+the setup that covers the most lines, and takes every line from it. The validator refuses an uncovered
+setup change while `style.continuity` is `single` (the default). If a line exists only in another
+setup: cover the switch with a cutaway, drop the line, or — only if the switch is deliberate, at a
+section boundary — set `"allow_setup_switch": true` on that segment and say so in the edit log.
+Never pick the best take per line across setups.
+
+**The brief's `style` is binding.** `style.zoom: false` means no punch-ins at all. `style.captions`
+picks the caption look. `style.notes` is the creator's own direction — follow it over any default here. If the brief is
 missing something required or contradicts the footage, ask **one** concise question before editing.
 
 ## Pipeline
@@ -47,7 +61,7 @@ All scripts take the job folder; run them from anywhere with `python3 <skill-dir
 | 1 | `probe.py <job>` | formats, canvas, flags: `vfr` `hdr` `low_res` `orientation` `clipping` `no_audio` | Report any flag in the edit log. `orientation` / `low_res` on a_roll → tell the user before going on. |
 | 2 | `ingest.py <job>` | ProRes mezzanines (CFR 30, Rec.709, HDR tone-mapped), analysis audio | Nothing — it is mechanical. Slow on 4K HDR (≈ 7× real time on 4 cores); that is expected. |
 | 3 | `transcribe.py <job>` | word transcript per a_roll, boundaries corrected to the audio | Skim it. Garbage text = bad audio; say so. |
-| 4 | `analyze.py <job>` | every take of every script beat, scored; pauses; fillers; off-script speech | **Read it.** This is your footage review. |
+| 4 | `analyze.py <job>` | camera setups; every take of every script beat, scored and tagged with its setup; pauses; fillers; off-script speech | **Read it, and look at `work/setups/*.jpg`.** This is your footage review. |
 | 5 | `autocut.py <job>` | `edits/v1/edl.json` — a mechanical first cut | **Judge and rewrite it** (next section). |
 | 6 | `build.py <job> v1` | snap → captions → cut → render → export → QA | Fix every `PROBLEM`, then look at the frames. |
 
@@ -58,6 +72,10 @@ caption chunks. `revise.py <job>` starts the next version.
 
 `autocut.py` applies rules. You apply judgment. Open `analysis.json` next to the new `edl.json` and decide:
 
+- **Script mode.** `verbatim` matches takes against the script lines. `points` (the speaker talks
+  freely around talking points) finds takes by repetition: an earlier, partial or restarted sentence
+  is replaced by the later one. Check every `off_point` sentence (keep it only if it earns its place)
+  and every `missing_point` (tell the user the point is not in the footage).
 - **Takes.** autocut prefers the highest-scoring take and, on near-ties, the *last* one (usually the
   keeper). Overrule it when another take has fewer pauses, better energy (higher `wps`), or the chosen
   one has `extended: true` and looks suspicious. A take is a word range: copy its `start`/`end` into
@@ -77,8 +95,9 @@ caption chunks. `revise.py <job>` starts the next version.
 - **Cutaways.** autocut anchors each AI clip to its `beat_ref` beats. Adjust `trim_start`/`trim_end`,
   or give an explicit `at`/`duration`. Cover cuts in the talking head with a cutaway when a jump cut
   would jar.
-- **Punch-ins.** `zoom` 1.1–1.25 on alternate segments hides jump cuts on a 4K source. The validator
-  refuses zooms that drop below 1080 source pixels.
+- **Punch-ins.** Only when `style.zoom` is true: `zoom` 1.1–1.25 on alternate segments hides jump cuts
+  on a 4K source. The validator refuses zooms that drop below 1080 source pixels. With zooms off,
+  hide a jarring jump cut with a cutaway, or move the cut to a natural pause.
 
 Every segment and cutaway carries a short `reason`. Write one for every change you make. The full EDL
 format and editing recipes are in [reference/edl.md](reference/edl.md).

@@ -21,9 +21,15 @@ import argparse
 from common import Envelope, Job, load, save, tc
 from edl import duration, snap, timeline, validate
 
-DEFAULT_STYLE = {
-    "max_words": 3, "max_chars": 16, "position_y": 0.64, "font_weight": 800, "size": 0.074,
-    "lead_frames": 2, "min_hold": 0.40, "animation": "pop",
+CAPTION_PRESETS = {
+    # loud reels look: big, outlined, coloured active word, pop-in
+    "bold": {"max_words": 3, "max_chars": 16, "position_y": 0.64, "font_weight": 800, "size": 0.074,
+             "lead_frames": 2, "min_hold": 0.40, "animation": "pop", "highlight_mode": "color",
+             "shadow": "strong"},
+    # quiet, designed look: smaller, no outline, soft shadow, the active word lifts by opacity, fade-in
+    "quiet": {"max_words": 4, "max_chars": 22, "position_y": 0.70, "font_weight": 500, "size": 0.052,
+              "lead_frames": 2, "min_hold": 0.50, "animation": "fade", "highlight_mode": "opacity",
+              "shadow": "soft"},
 }
 
 
@@ -76,7 +82,9 @@ def main():
     for b in analysis["beats"]:
         take = next((t for t in b["takes"] if t["chosen"]), None)
         if take is None:
-            notes.append(f"beat {b['index']} ({b['kind']}) has no take in the footage — missing from the edit")
+            if b["kind"] == "aside":
+                continue
+            notes.append(f"beat {b.get('beat', b['index'])} ({b['kind']}: {b['text'][:40]}) has no take in the footage — missing from the edit")
             continue
         others = len(b["takes"]) - 1
         tw = [w for w in words if take["w0"] <= w["g"] <= take["w1"]]
@@ -92,10 +100,18 @@ def main():
             seg_in = max(lo, first["start"] - pre)
             seg_out = min(hi, last["end"] + opt.pad)
             why = f"{b['kind']} {b['index']}, take {b['takes'].index(take) + 1} of {others + 1}"
+            if take.get("setup"):
+                why += f", setup {take['setup']}" + (" (SWITCH — will jump)" if b.get("setup_switch") else "")
             if r_i == 0 and reasons:
                 why += "; " + "; ".join(reasons)
-            segments.append({"asset": take["asset"], "in": round(seg_in, 4), "out": round(seg_out, 4),
-                             "beat": b["index"], "zoom": 1.0, "anchor": [0.5, 0.4], "reason": why})
+            segments.append({"asset": take["asset"], "setup": take.get("setup"), "in": round(seg_in, 4), "out": round(seg_out, 4),
+                             "beat": b.get("beat", b["index"]), "zoom": 1.0, "anchor": [0.5, 0.4], "reason": why})
+
+    for n in analysis.get("continuity", {}).get("notes", []):
+        notes.append(n)
+    off = [b for b in analysis["beats"] if b["kind"] == "off_point"]
+    for b in off:
+        notes.append(f"kept off-point sentence '{b['text'][:50]}' — matches no talking point; cut it unless it earns its place")
 
     # merge runs that ended up touching
     merged = []
@@ -118,15 +134,20 @@ def main():
             notes.append(f"{a['id']} ({a['type']}) has no beat_ref — place it by hand or leave it out")
 
     brand = job.brief["brand"]
+    preset = job.brief["style"]["captions"]
+    style = dict(CAPTION_PRESETS.get(preset, CAPTION_PRESETS["bold"]))
+    style.update({"font": brand["caption_font"], "color": brand["primary"], "highlight": brand["highlight"],
+                  "stroke": "none" if preset == "quiet" else brand["stroke"]})
+    if brand.get("font_file"):
+        style["font_file"] = brand["font_file"]
     edl = {
         "version": opt.version or job.next_version(),
         "brief_id": job.brief["id"],
         "canvas": canvas,
         "segments": merged,
         "cutaways": cutaways,
-        "captions": {"enabled": True, "language": job.brief["target"]["language"],
-                     "style": {**DEFAULT_STYLE, "font": brand["caption_font"], "color": brand["primary"],
-                               "highlight": brand["highlight"], "stroke": brand["stroke"]},
+        "captions": {"enabled": preset != "none", "preset": preset, "language": job.brief["target"]["language"],
+                     "style": style,
                      "overrides": [], "emphasis": [], "locked": False, "chunks": []},
         "audio": {"fade_ms": 12},
         "notes": notes,

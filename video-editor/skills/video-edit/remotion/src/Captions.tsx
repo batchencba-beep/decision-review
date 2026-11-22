@@ -1,3 +1,5 @@
+import "@fontsource/heebo/500.css";
+import "@fontsource/heebo/600.css";
 import "@fontsource/heebo/800.css";
 import "@fontsource/heebo/900.css";
 import React, { useEffect, useState } from "react";
@@ -40,14 +42,17 @@ const ChunkView: React.FC<{ chunk: Chunk; p: CaptionProps }> = ({ chunk, p }) =>
     ? spring({ frame: local, fps, config: { damping: 15, stiffness: 260, mass: 0.6 }, durationInFrames: 7 })
     : 1;
   const scale = interpolate(enter, [0, 1], [0.82, 1]) * (chunk.emphasis ? 1.22 : 1);
-  const opacity = s.animation === "pop" ? interpolate(local, [0, 2], [0, 1], { extrapolateRight: "clamp" }) : 1;
+  const opacity = s.animation === "pop" ? interpolate(local, [0, 2], [0, 1], { extrapolateRight: "clamp" })
+    : s.animation === "fade" ? interpolate(local, [0, 4], [0, 1], { extrapolateRight: "clamp" }) : 1;
+  const byOpacity = s.highlightMode === "opacity";
+  const soft = s.shadow === "soft";
 
   // active word = the last word that has started (stays lit through micro-gaps, no flicker)
   let active = -1;
   chunk.words.forEach((w, i) => { if (frame >= w.from) active = i; });
 
   const fontPx = s.size * p.width;
-  const strokePx = Math.max(2, fontPx * 0.09);
+  const strokePx = s.stroke === "none" ? 0 : Math.max(2, fontPx * 0.09);
   return (
     <div
       dir={p.direction}
@@ -76,17 +81,21 @@ const ChunkView: React.FC<{ chunk: Chunk; p: CaptionProps }> = ({ chunk, p }) =>
     >
       {chunk.words.map((w, i) => {
         const lit = chunk.emphasis || i === active;
+        const color = byOpacity ? (chunk.emphasis ? s.highlight : s.color) : (lit ? s.highlight : s.color);
         return (
           <span
             key={i}
             style={{
               unicodeBidi: "isolate",   // keeps English words and numbers in order inside RTL lines
-              color: lit ? s.highlight : s.color,
-              WebkitTextStroke: `${strokePx}px ${s.stroke}`,
+              color,
+              opacity: byOpacity && !lit && i > active ? 0.55 : 1,
+              WebkitTextStroke: strokePx ? `${strokePx}px ${s.stroke}` : undefined,
               paintOrder: "stroke fill",
-              textShadow: `0 ${fontPx * 0.05}px ${fontPx * 0.12}px rgba(0,0,0,0.55)`,
+              textShadow: soft
+                ? `0 ${fontPx * 0.03}px ${fontPx * 0.25}px rgba(0,0,0,0.45)`
+                : `0 ${fontPx * 0.05}px ${fontPx * 0.12}px rgba(0,0,0,0.55)`,
               display: "inline-block",
-              transform: lit && !chunk.emphasis ? "scale(1.06)" : "none",
+              transform: lit && !chunk.emphasis && !byOpacity ? "scale(1.06)" : "none",
             }}
           >
             {w.text}

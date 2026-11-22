@@ -34,6 +34,8 @@ caption times are OUTPUT times. Everything is snapped to the 30 fps frame grid a
 | `beat` | script beat index (used to anchor cutaways and for your own bookkeeping) |
 | `zoom` | 1.0–1.5 punch-in. Refused if fewer than 1080 source pixels would remain across the frame (on a 1080p source, no zoom at all). |
 | `anchor` | `[x, y]` of the zoom/crop centre as fractions of the frame. Faces sit around y = 0.35–0.45. |
+| `setup` | camera setup of the take (from analysis; informational) |
+| `allow_setup_switch` | `true` only for a deliberate setup change at a section boundary; otherwise the validator refuses a cut into a different setup |
 | `reason` | why this piece is here. Always fill it. |
 
 Order = playback order. To move a beat, move its segments. Two segments from the same take with a short
@@ -64,7 +66,8 @@ See [captions.md](captions.md).
 | "Highlight the word X" | `captions.emphasis: ["X"]`. |
 | "No captions" | `captions.enabled: false`. |
 | "Show the AI clip earlier / longer" | Adjust `trim_start` / `trim_end`, or switch to explicit `at` / `duration`. |
-| "Jump cut at 0:08 is jarring" | Add `zoom: 1.15–1.25` to the segment after the cut, or cover the cut with a cutaway. |
+| "Jump cut at 0:08 is jarring" | Cover the cut with a cutaway, or move it to a natural pause. Only if `style.zoom` is true: `zoom: 1.15–1.25` on the segment after the cut. |
+| "I jump position between sentences" | Two camera setups got mixed. Re-run `analyze.py` + `autocut.py` (continuity `single` takes everything from one setup), or swap each off-setup segment for the same line's take in the main setup (`analysis.json` lists each take's `setup`). |
 | "Too zoomed / cropped" | `zoom: 1.0`, or move `anchor`. |
 
 After any edit: `validate_edl.py <job> <v> --snap` to see the new timeline, then `build.py <job> <v>`.

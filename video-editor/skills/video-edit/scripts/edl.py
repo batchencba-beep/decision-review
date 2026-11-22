@@ -183,6 +183,9 @@ def validate(job: Job, edl: dict) -> tuple[list[str], list[str]]:
                     errors.append(f"{sid}.{key}={s[key]:.3f} cuts through the word '{w['text']}' "
                                   f"({w['start']:.2f}–{w['end']:.2f}) — run with --snap")
         z = float(s.get("zoom", 1.0))
+        if z > 1.0 and not job.brief["style"]["zoom"]:
+            errors.append(f"{sid}: zoom {z} — the brief says no zooms (movement comes from the speaker). "
+                          f"Hide jump cuts with a cutaway or a better cut point instead")
         if z < 1.0 or z > MAX_ZOOM:
             errors.append(f"{sid}: zoom {z} outside 1.0–{MAX_ZOOM}")
         if z > 1.0:
@@ -208,6 +211,24 @@ def validate(job: Job, edl: dict) -> tuple[list[str], list[str]]:
             errors.append(f"{c.get('id')}: {a['width']}x{a['height']} needs {cover:.1f}x upscale (max 2x)")
         elif cover > 1.01:
             warns.append(f"{c.get('id')}: {a['id']} upscaled {cover:.2f}x (lanczos) — slightly softer than A-roll")
+    # framing jumps: consecutive segments from different camera setups with no cutaway over the join
+    sp = job.work / "setups.json"
+    if sp.exists():
+        from setups import setup_of_span
+        sdata = load(sp)
+        cuts_covered = [(c["at"], c["at"] + c["duration"]) for c in resolve_cutaways(edl, probe)]
+        prev = None
+        for s in tl:
+            cur = setup_of_span(sdata, s["asset"], s["f_in"] / fps, s["f_out"] / fps)
+            if prev and cur and prev[1] != cur and not any(a - 0.05 <= s["o_start"] <= b + 0.05 for a, b in cuts_covered):
+                msg = (f"{s['id']}: camera setup changes {prev[1]}→{cur} at {s['o_start']:.2f}s with nothing "
+                       f"covering the cut — the speaker jumps position")
+                (errors if job.brief["style"]["continuity"] == "single" and not s.get("allow_setup_switch")
+                 else warns).append(msg + ("; cover it with a cutaway, use a take from the same setup, or set "
+                                           "allow_setup_switch on the segment if it is deliberate"
+                                           if job.brief["style"]["continuity"] == "single" else ""))
+            prev = (s["id"], cur)
+
     target = job.brief["target"]["max_seconds"]
     if total > target + 0.5:
         warns.append(f"duration {total:.1f}s is over the {target:.0f}s target — cut the weakest beat")
@@ -217,6 +238,7 @@ def validate(job: Job, edl: dict) -> tuple[list[str], list[str]]:
         warns.append(f"first word lands at {ws[0]['start'] - first['in']:.2f}s — should be ≤ 0.30s")
     spans = beat_spans(tl)
     hook = next((b for b in analysis.get("beats", []) if b["kind"] == "hook"), None)
-    if hook and hook["index"] in spans and spans[hook["index"]][1] > 3.0:
-        warns.append(f"hook ends at {spans[hook['index']][1]:.2f}s — must land by 3.0s")
+    hb = hook.get("beat", hook["index"]) if hook else None
+    if hook and hb in spans and spans[hb][1] > 3.0:
+        warns.append(f"hook ends at {spans[hb][1]:.2f}s — must land by 3.0s")
     return errors, warns

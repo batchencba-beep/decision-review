@@ -1,6 +1,6 @@
 {
   "name": "video-editor",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "A short-form video editor agent: takes, pacing, frame-accurate cuts, animated Hebrew/RTL captions, AI-clip cutaways, platform exports, self-QA and revision rounds.",
   "author": {
     "name": "Bat Chen Ben Arza",

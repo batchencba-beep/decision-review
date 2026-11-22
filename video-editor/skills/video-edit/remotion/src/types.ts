@@ -9,9 +9,11 @@ export type CaptionStyle = {
   size: number;          // font size as a fraction of frame width (0.074 ≈ 80px at 1080)
   color: string;         // resting word colour
   highlight: string;     // active word / emphasis colour
-  stroke: string;        // outline colour
+  stroke: string;        // outline colour, or "none" for no outline
+  highlightMode?: "color" | "opacity";  // active word: brand colour, or full opacity over dimmed words
+  shadow?: "strong" | "soft";
   positionY: number;     // vertical centre of the caption block, fraction of height (safe: 0.25–0.70)
-  animation: "pop" | "none";
+  animation: "pop" | "fade" | "none";
 };
 
 export type CaptionProps = {
