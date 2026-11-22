@@ -100,11 +100,15 @@ def main():
             seg_in = max(lo, first["start"] - pre)
             seg_out = min(hi, last["end"] + opt.pad)
             why = f"{b['kind']} {b['index']}, take {b['takes'].index(take) + 1} of {others + 1}"
+            if take.get("setup"):
+                why += f", setup {take['setup']}" + (" (SWITCH — will jump)" if b.get("setup_switch") else "")
             if r_i == 0 and reasons:
                 why += "; " + "; ".join(reasons)
-            segments.append({"asset": take["asset"], "in": round(seg_in, 4), "out": round(seg_out, 4),
+            segments.append({"asset": take["asset"], "setup": take.get("setup"), "in": round(seg_in, 4), "out": round(seg_out, 4),
                              "beat": b.get("beat", b["index"]), "zoom": 1.0, "anchor": [0.5, 0.4], "reason": why})
 
+    for n in analysis.get("continuity", {}).get("notes", []):
+        notes.append(n)
     off = [b for b in analysis["beats"] if b["kind"] == "off_point"]
     for b in off:
         notes.append(f"kept off-point sentence '{b['text'][:50]}' — matches no talking point; cut it unless it earns its place")

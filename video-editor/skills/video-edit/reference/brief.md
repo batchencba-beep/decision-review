@@ -21,7 +21,7 @@ One file at the root of the job folder. The Reels Agent writes it; the editor re
   ],
   "target": {"platforms": ["instagram", "tiktok"], "max_seconds": 35, "language": "he"},
   "brand": {"caption_font": "Heebo", "primary": "#FFFFFF", "highlight": "#FFD60A", "stroke": "#000000"},
-  "style": {"captions": "bold", "zoom": true, "notes": ""}
+  "style": {"captions": "bold", "zoom": true, "continuity": "single", "notes": ""}
 }
 ```
 
@@ -40,6 +40,7 @@ One file at the root of the job folder. The Reels Agent writes it; the editor re
 | `brand.*` | no | Caption colours and font. `font_file` (path in the job folder) for any font other than Heebo. |
 | `style.captions` | no (`bold`) | `bold` big outlined captions with a coloured active word and a pop-in; `quiet` smaller, no outline, soft shadow, upcoming words dimmed, fade-in; `none` no captions. |
 | `style.zoom` | no (`true`) | `false` forbids punch-ins: the validator refuses any zoom. Hide jump cuts with cutaways or better cut points. |
+| `style.continuity` | no (`single`) | `single`: the whole reel comes from one camera setup (detected from the picture); a setup change is refused unless covered by a cutaway or marked `allow_setup_switch`. `free`: best take per line regardless of setup (only for deliberate multi-camera edits). |
 | `style.notes` | no | Free-text editing direction ("quiet, warm, designed"). Read it and follow it. |
 
 ## When to stop and ask

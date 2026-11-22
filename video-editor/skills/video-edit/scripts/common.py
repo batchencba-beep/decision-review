@@ -175,6 +175,7 @@ def normalize_brief(b: dict) -> dict:
     b["style"] = {
         "captions": st.get("captions", "bold"),   # bold | quiet | none
         "zoom": bool(st.get("zoom", True)),        # false = never punch in (movement comes from the speaker)
+        "continuity": st.get("continuity", "single"),  # single = one camera setup for the whole reel | free
         "notes": st.get("notes", ""),              # free-text editing direction for the editor
     }
     return b

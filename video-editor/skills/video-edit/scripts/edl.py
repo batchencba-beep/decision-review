@@ -211,6 +211,24 @@ def validate(job: Job, edl: dict) -> tuple[list[str], list[str]]:
             errors.append(f"{c.get('id')}: {a['width']}x{a['height']} needs {cover:.1f}x upscale (max 2x)")
         elif cover > 1.01:
             warns.append(f"{c.get('id')}: {a['id']} upscaled {cover:.2f}x (lanczos) — slightly softer than A-roll")
+    # framing jumps: consecutive segments from different camera setups with no cutaway over the join
+    sp = job.work / "setups.json"
+    if sp.exists():
+        from setups import setup_of_span
+        sdata = load(sp)
+        cuts_covered = [(c["at"], c["at"] + c["duration"]) for c in resolve_cutaways(edl, probe)]
+        prev = None
+        for s in tl:
+            cur = setup_of_span(sdata, s["asset"], s["f_in"] / fps, s["f_out"] / fps)
+            if prev and cur and prev[1] != cur and not any(a - 0.05 <= s["o_start"] <= b + 0.05 for a, b in cuts_covered):
+                msg = (f"{s['id']}: camera setup changes {prev[1]}→{cur} at {s['o_start']:.2f}s with nothing "
+                       f"covering the cut — the speaker jumps position")
+                (errors if job.brief["style"]["continuity"] == "single" and not s.get("allow_setup_switch")
+                 else warns).append(msg + ("; cover it with a cutaway, use a take from the same setup, or set "
+                                           "allow_setup_switch on the segment if it is deliberate"
+                                           if job.brief["style"]["continuity"] == "single" else ""))
+            prev = (s["id"], cur)
+
     target = job.brief["target"]["max_seconds"]
     if total > target + 0.5:
         warns.append(f"duration {total:.1f}s is over the {target:.0f}s target — cut the weakest beat")
