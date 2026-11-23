@@ -159,20 +159,28 @@ const MODES=[
 let modeIdx=Number(store.get('cp-cam')||0)%MODES.length;
 async function getStream(i){
   return navigator.mediaDevices.getUserMedia({
-    video:Object.assign({facingMode:'user',frameRate:{ideal:30}},MODES[i]),
-    audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}
+    video:Object.assign({facingMode:'user',frameRate:{ideal:30}},MODES[i]),audio:false
   });
 }
+/* the microphone is opened once, on its own, and never closed when the camera setting changes */
+let mic=null;
+async function ensureMic(){
+  const t=mic&&mic.getAudioTracks()[0];
+  if(t&&t.readyState==='live'&&!t.muted)return;
+  if(mic)mic.getTracks().forEach(x=>x.stop());
+  mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}});
+}
+function combine(video){return new MediaStream([...video.getVideoTracks(),...(mic?mic.getAudioTracks():[])])}
 function dims(st){const s=st.getVideoTracks()[0].getSettings();return [s.width||0,s.height||0]}
 async function useMode(i,skipLandscape){
   for(let n=0;n<MODES.length;n++){
     const k=(i+n)%MODES.length;
-    if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+    if(stream){stream.getVideoTracks().forEach(t=>t.stop());stream=null}
     let st;try{st=await getStream(k)}catch(e){if(e.name==='NotAllowedError')throw e;continue}
     await new Promise(r=>setTimeout(r,250));
     const [w,h]=dims(st);
     if(skipLandscape&&w>h&&n<MODES.length-1){st.getTracks().forEach(t=>t.stop());continue}
-    stream=st;modeIdx=k;store.set('cp-cam',String(k));
+    stream=combine(st);modeIdx=k;store.set('cp-cam',String(k));
     cam.srcObject=stream;
     try{const tr=stream.getVideoTracks()[0],c=tr.getCapabilities?.()||{};if(c.zoom)await tr.applyConstraints({advanced:[{zoom:c.zoom.min}]})}catch(e){}
     const [w2,h2]=dims(stream);$('camBtn').textContent='מצלמה '+(k+1)+' · '+w2+'×'+h2;
@@ -182,6 +190,7 @@ async function useMode(i,skipLandscape){
 }
 async function openCam(){
   try{
+    await ensureMic();
     await useMode(modeIdx,true);
     $('startSheet').hidden=true;
     try{wake=await navigator.wakeLock?.request('screen')}catch(e){}
@@ -199,6 +208,7 @@ function pickType(){
 }
 async function startRec(){
   if(!stream)return;
+  try{await ensureMic();stream=combine(stream)}catch(e){}
   await countdown();
   chunks=[];const type=pickType();
   recorder=new MediaRecorder(stream,type?{mimeType:type,videoBitsPerSecond:8e6}:undefined);
