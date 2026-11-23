@@ -9,7 +9,8 @@
 :root{--accent:#e08a62;--fg:#fff;--size:30px;--speed:30}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:#000;color:var(--fg);font-family:-apple-system,"Heebo","Assistant",system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}
-video#cam{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+video#cam{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000;transform:scaleX(-1)}
+body.fill video#cam{object-fit:cover}
 #prompt{position:fixed;top:0;left:0;right:0;height:42%;padding:calc(env(safe-area-inset-top,0px) + 14px) 18px 0;background:linear-gradient(#000000c8 70%,#0000);overflow:hidden}
 #scroller{height:100%;overflow-y:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(#000 75%,#0000)}
 #scroller::-webkit-scrollbar{display:none}
@@ -55,6 +56,7 @@ video#review{width:100%;max-height:60vh;border-radius:12px;background:#111}
     <button id="rec" aria-label="הקלטה"><i></i></button>
     <span id="timer">0:00</span>
     <button id="restart">מההתחלה</button>
+    <button id="fitBtn">מסך מלא</button>
   </div>
 </div>
 
@@ -141,10 +143,12 @@ function mark(){
 async function openCam(){
   try{
     stream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:'user',width:{ideal:1080},height:{ideal:1920},frameRate:{ideal:30}},
+      video:{facingMode:'user',width:{ideal:1440},height:{ideal:1920},aspectRatio:{ideal:0.75},frameRate:{ideal:30}},
       audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}
     });
     cam.srcObject=stream;$('startSheet').hidden=true;
+    /* widest view: lowest zoom the camera allows */
+    try{const tr=stream.getVideoTracks()[0],c=tr.getCapabilities?.()||{};if(c.zoom)await tr.applyConstraints({advanced:[{zoom:c.zoom.min}]})}catch(e){}
     try{wake=await navigator.wakeLock?.request('screen')}catch(e){}
   }catch(e){
     const p=$('camErr');p.hidden=false;
@@ -244,6 +248,9 @@ $('doneEdit').onclick=()=>{setText($('src').value);$('editSheet').hidden=true};
 $('usePoints').onclick=()=>{$('src').value=POINTS};
 $('useScript').onclick=()=>{$('src').value=SCRIPT};
 $('saveBtn').onclick=save;
+function fit(on){document.body.classList.toggle('fill',on);$('fitBtn').textContent=on?'כל הפריים':'מסך מלא';store.set('cp-fill',on?'1':'')}
+fit(store.get('cp-fill')==='1');
+$('fitBtn').onclick=()=>fit(!document.body.classList.contains('fill'));
 $('againBtn').onclick=()=>{$('reviewSheet').hidden=true;pos=0;scroller.scrollTop=0;mark();$('timer').textContent='0:00'};
 /* tap the text to jump the marker back or forward by hand */
 textEl.addEventListener('click',e=>{const i=spans.indexOf(e.target);if(i>=0){pos=i;mark()}});
