@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>טלפרומפטר עם מצלמה</title>
+<style>
+:root{--accent:#e08a62;--fg:#fff;--size:30px;--speed:30}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#000;color:var(--fg);font-family:-apple-system,"Heebo","Assistant",system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}
+video#cam{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+#prompt{position:fixed;top:0;left:0;right:0;height:42%;padding:calc(env(safe-area-inset-top,0px) + 14px) 18px 0;background:linear-gradient(#000000c8 70%,#0000);overflow:hidden}
+#scroller{height:100%;overflow-y:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(#000 75%,#0000)}
+#scroller::-webkit-scrollbar{display:none}
+#text{font-size:var(--size);line-height:1.4;font-weight:600;white-space:pre-wrap;padding-bottom:60vh}
+#text .w.done{opacity:.4}
+#text .w.now{color:var(--accent)}
+#bar{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 16px);display:flex;flex-direction:column;gap:12px;background:linear-gradient(#0000,#000000b0 40%)}
+.row{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
+button,select{font:600 15px inherit;font-family:inherit;color:#fff;background:#ffffff26;border:1px solid #ffffff40;border-radius:999px;padding:9px 14px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+#rec{width:74px;height:74px;border-radius:50%;padding:0;background:transparent;border:4px solid #fff;display:grid;place-items:center}
+#rec i{display:block;width:56px;height:56px;border-radius:50%;background:#e5484d;transition:.2s}
+#rec.on i{width:28px;height:28px;border-radius:7px}
+label{font-size:13px;display:flex;align-items:center;gap:6px;color:#ffffffd0}
+input[type=range]{width:96px;accent-color:var(--accent)}
+#timer{font-variant-numeric:tabular-nums;font-size:14px;min-width:44px;text-align:center}
+#count{position:fixed;inset:0;display:grid;place-items:center;font-size:120px;font-weight:700;pointer-events:none;text-shadow:0 4px 30px #000}
+.sheet{position:fixed;inset:0;background:#000000e6;padding:calc(env(safe-area-inset-top,0px) + 20px) 18px calc(env(safe-area-inset-bottom,0px) + 20px);display:flex;flex-direction:column;gap:12px;z-index:5;overflow:auto}
+.sheet h2{margin:0;font-size:20px}
+.sheet p{margin:0;color:#ffffffc0;line-height:1.5}
+textarea{flex:1;min-height:240px;width:100%;font:17px/1.6 inherit;font-family:inherit;color:#fff;background:#ffffff14;border:1px solid #ffffff30;border-radius:12px;padding:12px;direction:rtl;-webkit-user-select:text;user-select:text}
+.primary{background:var(--accent);border-color:var(--accent)}
+video#review{width:100%;max-height:60vh;border-radius:12px;background:#111}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<video id="cam" playsinline autoplay muted></video>
+
+<div id="prompt"><div id="scroller"><div id="text"></div></div></div>
+<div id="count" hidden></div>
+
+<div id="bar">
+  <div class="row">
+    <label>גודל <input type="range" id="size" min="20" max="48" value="30"></label>
+    <label>מהירות <input type="range" id="speed" min="8" max="90" value="30"></label>
+  </div>
+  <div class="row">
+    <button id="editBtn">טקסט</button>
+    <select id="mode" aria-label="איך הטקסט מתקדם">
+      <option value="voice">עוקב אחרי הקול</option>
+      <option value="auto">מהירות קבועה</option>
+    </select>
+    <button id="rec" aria-label="הקלטה"><i></i></button>
+    <span id="timer">0:00</span>
+    <button id="restart">מההתחלה</button>
+  </div>
+</div>
+
+<div class="sheet" id="startSheet">
+  <h2>טלפרומפטר עם מצלמה</h2>
+  <p>הטקסט רץ למעלה, ליד העדשה. במצב "עוקב אחרי הקול" הוא מתקדם לפי מה שאת אומרת. אם המעקב לא עובד במכשיר, הוא עובר לבד למהירות קבועה</p>
+  <p>אחרי העצירה אפשר לשמור את הסרטון לתמונות</p>
+  <button class="primary" id="startBtn">פתיחת מצלמה</button>
+  <p id="camErr" hidden></p>
+</div>
+
+<div class="sheet" id="editSheet" hidden>
+  <h2>הטקסט להקראה</h2>
+  <textarea id="src"></textarea>
+  <div class="row">
+    <button id="usePoints">נקודות לזכור</button>
+    <button id="useScript">התסריט המלא</button>
+    <button class="primary" id="doneEdit">סיום</button>
+  </div>
+</div>
+
+<div class="sheet" id="reviewSheet" hidden>
+  <h2>הטייק מוכן</h2>
+  <video id="review" playsinline controls></video>
+  <div class="row">
+    <button class="primary" id="saveBtn">שמירה</button>
+    <button id="againBtn">טייק נוסף</button>
+  </div>
+  <p id="saveNote">בשמירה בוחרים "שמירת סרטון" כדי שיגיע לתמונות</p>
+</div>
+
+<script>
+const POINTS=`21 מקומות, 39 ראיונות, 6 מטלות בית. ודי
+
+לא ויתרתי. האנרגיה צריכה ללכת למקום אחר
+
+בכל ראיון, גם אני ראיינתי. איך הם עובדים, איך עם AI, איך רואים מעצבים
+
+אחרי 21 מקומות יש לי תמונה רחבה של התעשייה
+
+בהתחלה רק רציתי לעצב. היום זה כבר לא הכלי, זה העבודה עצמה
+
+אפשר להתגעגע לפיגמה, ואני בוחרת בשנייה
+
+יש עוד הרבה כמוני. מכאן אני משתפת מה ראיתי מבפנים`;
+const SCRIPT=`התראיינתי ב-21 מקומות שונים, עברתי 39 ראיונות ו-6 מטלות בית, ולפני כמה שבועות החלטתי שדי, אני לא שולחת יותר קורות חיים
+
+וזה לא כי אני לא רוצה למצוא עבודה, ולא כי אני לא רואה את עצמי כמעצבת מוצר בעולם הטק. זה כי הרגשתי שזה גומר לי את האנרגיה, ושכדי להתקדם מקצועית אני צריכה להשקיע אותה במקום אחר
+
+כי מה שגיליתי זה שבכל פעם שהתראיינתי, גם אני ראיינתי. סקרן אותי להבין איך כל מקום עובד, איך הוא עובד עם AI, ואיך הוא רואה את התפקיד של מעצב מוצר. ואחרי 21 מקומות יש לי פרספקטיבה די רחבה על איפה התעשייה עומדת עכשיו
+
+ובהתחלה הייתי כמו הרבה אחרים, אמרתי תנו לי פשוט לעשות את העבודה שלי, אני אלמד את הכלים כי צריך. ועם הזמן הבנתי שזה כבר לא הכלי, זה העבודה עצמה. אפשר להתבאס על זה ולהתגעגע לגעת במסכים בפיגמה, ואפשר לראות את זה כתקופה חדשה ומסקרנת שמתפתחת לנו מול העיניים, ואני בוחרת באופציה השנייה
+
+אז אני פותחת את זה כאן, כי אני יודעת שיש עוד לא מעט שעוברים את מה שאני עוברת. ומכאן אני הולכת לשתף מה ראיתי מבפנים, איך נראה שוק העבודה למעצבים, ואיך העבודה שלנו משתנה`;
+
+const $=id=>document.getElementById(id);
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const cam=$('cam'),scroller=$('scroller'),textEl=$('text');
+let stream=null,recorder=null,chunks=[],blob=null,recording=false,t0=0,timerId=0;
+let words=[],spans=[],pos=0,autoOn=false,acc=0,last=0,rec=null,voiceOk=true,wake=null;
+
+/* ---------- text ---------- */
+const norm=s=>s.replace(/[֑-ׇ]/g,'').replace(/[^\p{L}\p{N}]/gu,'').toLowerCase();
+function render(t){
+  textEl.innerHTML='';words=[];spans=[];
+  t.split(/(\s+)/).forEach(part=>{
+    if(/^\s+$/.test(part)||!part){textEl.appendChild(document.createTextNode(part));return}
+    const s=document.createElement('span');s.className='w';s.textContent=part;
+    textEl.appendChild(s);spans.push(s);words.push(norm(part));
+  });
+  pos=0;scroller.scrollTop=0;mark();
+}
+function setText(t){$('src').value=t;store.set('cp-text',t);render(t)}
+function mark(){
+  spans.forEach((s,i)=>{s.classList.toggle('done',i<pos);s.classList.toggle('now',i===pos)});
+  const cur=spans[Math.min(pos,spans.length-1)];
+  if(cur&&$('mode').value==='voice'){
+    const target=cur.offsetTop-scroller.clientHeight*0.18;
+    scroller.scrollTo({top:Math.max(0,target),behavior:'smooth'});
+  }
+}
+
+/* ---------- camera ---------- */
+async function openCam(){
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'user',width:{ideal:1080},height:{ideal:1920},frameRate:{ideal:30}},
+      audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}
+    });
+    cam.srcObject=stream;$('startSheet').hidden=true;
+    try{wake=await navigator.wakeLock?.request('screen')}catch(e){}
+  }catch(e){
+    const p=$('camErr');p.hidden=false;
+    p.textContent='המצלמה לא נפתחה. צריך לאשר גישה למצלמה ולמיקרופון, ולפתוח את הדף בספארי בכתובת https';
+  }
+}
+
+/* ---------- recording ---------- */
+function pickType(){
+  for(const t of ['video/mp4;codecs=avc1,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm'])
+    if(window.MediaRecorder&&MediaRecorder.isTypeSupported(t))return t;
+  return '';
+}
+async function startRec(){
+  if(!stream)return;
+  await countdown();
+  chunks=[];const type=pickType();
+  recorder=new MediaRecorder(stream,type?{mimeType:type,videoBitsPerSecond:8e6}:undefined);
+  recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+  recorder.onstop=showReview;
+  recorder.start(1000);recording=true;$('rec').classList.add('on');
+  t0=Date.now();timerId=setInterval(()=>{const s=Math.floor((Date.now()-t0)/1000);$('timer').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0')},250);
+  startAdvance();
+}
+function stopRec(){
+  recording=false;$('rec').classList.remove('on');clearInterval(timerId);stopAdvance();
+  if(recorder&&recorder.state!=='inactive')recorder.stop();
+}
+function countdown(){
+  return new Promise(res=>{let n=3;const c=$('count');c.hidden=false;c.textContent=n;
+    const id=setInterval(()=>{n--;if(n<=0){clearInterval(id);c.hidden=true;res()}else c.textContent=n},800)});
+}
+function showReview(){
+  blob=new Blob(chunks,{type:recorder.mimeType||'video/mp4'});
+  const v=$('review');v.src=URL.createObjectURL(blob);$('reviewSheet').hidden=false;
+}
+async function save(){
+  const ext=blob.type.includes('mp4')?'mp4':'webm';
+  const file=new File([blob],'take-'+Date.now()+'.'+ext,{type:blob.type});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file]});return}catch(e){if(e.name==='AbortError')return}
+  }
+  const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();a.remove();
+}
+
+/* ---------- advancing ---------- */
+function startAdvance(){
+  if($('mode').value==='voice'&&voiceOk&&startVoice())return;
+  $('mode').value='auto';autoOn=true;last=0;requestAnimationFrame(autoTick);
+}
+function stopAdvance(){autoOn=false;if(rec){try{rec.onend=null;rec.stop()}catch(e){}rec=null}}
+function autoTick(t){
+  if(!autoOn)return;
+  const dt=last?(t-last)/1000:0;last=t;acc+=dt*Number($('speed').value);
+  const step=Math.floor(acc);if(step){scroller.scrollTop+=step;acc-=step}
+  requestAnimationFrame(autoTick);
+}
+function startVoice(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){voiceOk=false;return false}
+  rec=new SR();rec.lang='he-IL';rec.continuous=true;rec.interimResults=true;
+  rec.onresult=e=>{
+    let heard='';for(let i=e.resultIndex;i<e.results.length;i++)heard+=' '+e.results[i][0].transcript;
+    follow(heard.split(/\s+/).map(norm).filter(Boolean));
+  };
+  rec.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'||e.error==='audio-capture'){voiceOk=false;rec=null;if(recording){$('mode').value='auto';autoOn=true;last=0;requestAnimationFrame(autoTick)}}};
+  rec.onend=()=>{if(recording&&rec){try{rec.start()}catch(e){}}};
+  try{rec.start();return true}catch(e){voiceOk=false;return false}
+}
+/* match the last words heard to the next words in the script, looking a little ahead */
+function follow(heard){
+  const tail=heard.slice(-4);
+  for(let k=tail.length-1;k>=0;k--){
+    const w=tail[k];if(w.length<2)continue;
+    for(let j=pos;j<Math.min(words.length,pos+14);j++){
+      const s=words[j];
+      if(s&&(s===w||(s.length>3&&(s.includes(w)||w.includes(s))))){
+        if(j+1>pos){pos=j+1;mark()}return;
+      }
+    }
+  }
+}
+
+/* ---------- wiring ---------- */
+function look(){
+  document.documentElement.style.setProperty('--size',$('size').value+'px');
+  store.set('cp-size',$('size').value);store.set('cp-speed',$('speed').value);store.set('cp-mode',$('mode').value);
+}
+['size','speed','mode'].forEach(id=>{const v=store.get('cp-'+id);if(v)$(id).value=v;$(id).addEventListener('input',look)});
+look();
+setText(store.get('cp-text')||POINTS);
+$('startBtn').onclick=openCam;
+$('rec').onclick=()=>recording?stopRec():startRec();
+$('restart').onclick=()=>{pos=0;scroller.scrollTop=0;mark()};
+$('editBtn').onclick=()=>{if(!recording)$('editSheet').hidden=false};
+$('doneEdit').onclick=()=>{setText($('src').value);$('editSheet').hidden=true};
+$('usePoints').onclick=()=>{$('src').value=POINTS};
+$('useScript').onclick=()=>{$('src').value=SCRIPT};
+$('saveBtn').onclick=save;
+$('againBtn').onclick=()=>{$('reviewSheet').hidden=true;pos=0;scroller.scrollTop=0;mark();$('timer').textContent='0:00'};
+/* tap the text to jump the marker back or forward by hand */
+textEl.addEventListener('click',e=>{const i=spans.indexOf(e.target);if(i>=0){pos=i;mark()}});
+document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'&&stream){try{wake=await navigator.wakeLock?.request('screen')}catch(e){}}});
+</script>
+</body>
+</html>
