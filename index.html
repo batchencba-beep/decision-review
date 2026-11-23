@@ -11,10 +11,10 @@
 html,body{margin:0;height:100%;background:#000;color:var(--fg);font-family:-apple-system,"Heebo","Assistant",system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}
 video#cam{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;background:#000;transform:scaleX(-1)}
 body.whole video#cam{object-fit:contain}
-#prompt{position:fixed;top:0;left:0;right:0;height:42%;padding:calc(env(safe-area-inset-top,0px) + 14px) 18px 0;background:linear-gradient(#000000c8 70%,#0000);overflow:hidden}
+#prompt{position:fixed;top:0;left:0;right:0;height:calc(env(safe-area-inset-top,0px) + 22vh);padding:calc(env(safe-area-inset-top,0px) + 8px) 18px 0;background:linear-gradient(#00000059,#0000);overflow:hidden}
 #scroller{height:100%;overflow-y:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(#000 75%,#0000)}
 #scroller::-webkit-scrollbar{display:none}
-#text{font-size:var(--size);line-height:1.4;font-weight:600;white-space:pre-wrap;padding-bottom:60vh}
+#text{font-size:var(--size);line-height:1.35;font-weight:600;white-space:pre-wrap;padding-bottom:22vh;text-shadow:0 1px 3px #000,0 0 12px #000a}
 #text .w.done{opacity:.4}
 #text .w.now{color:var(--accent)}
 #bar{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 16px);display:flex;flex-direction:column;gap:12px;background:linear-gradient(#0000,#000000b0 40%)}
@@ -34,6 +34,11 @@ textarea{flex:1;min-height:240px;width:100%;font:17px/1.6 inherit;font-family:in
 .primary{background:var(--accent);border-color:var(--accent)}
 video#review{width:100%;max-height:60vh;border-radius:12px;background:#111}
 [hidden]{display:none!important}
+/* while recording: only the stop button and timer stay, the face area stays clear */
+body.recording #bar{background:none;padding-top:0}
+body.recording #bar .row>*:not(#rec):not(#timer){display:none}
+body.recording #bar .row:first-child{display:none}
+body.recording #rec{width:56px;height:56px;opacity:.75}
 </style>
 </head>
 <body>
@@ -44,7 +49,7 @@ video#review{width:100%;max-height:60vh;border-radius:12px;background:#111}
 
 <div id="bar">
   <div class="row">
-    <label>גודל <input type="range" id="size" min="20" max="48" value="30"></label>
+    <label>גודל <input type="range" id="size" min="20" max="48" value="26"></label>
     <label>מהירות <input type="range" id="speed" min="8" max="90" value="30"></label>
   </div>
   <div class="row">
@@ -199,12 +204,12 @@ async function startRec(){
   recorder=new MediaRecorder(stream,type?{mimeType:type,videoBitsPerSecond:8e6}:undefined);
   recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
   recorder.onstop=showReview;
-  recorder.start(1000);recording=true;$('rec').classList.add('on');
+  recorder.start(1000);recording=true;$('rec').classList.add('on');document.body.classList.add('recording');
   t0=Date.now();timerId=setInterval(()=>{const s=Math.floor((Date.now()-t0)/1000);$('timer').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0')},250);
   startAdvance();
 }
 function stopRec(){
-  recording=false;$('rec').classList.remove('on');clearInterval(timerId);stopAdvance();
+  recording=false;$('rec').classList.remove('on');document.body.classList.remove('recording');clearInterval(timerId);stopAdvance();
   if(recorder&&recorder.state!=='inactive')recorder.stop();
 }
 function countdown(){
